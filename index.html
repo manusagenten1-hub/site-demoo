@@ -1,0 +1,2017 @@
+<!doctype html>
+<html lang="pt-BR" class="scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Preto Automóveis — Veículos Selecionados</title>
+    <meta
+      name="description"
+      content="Veículos selecionados com procedência garantida. Transparência e atendimento especializado em cada negociação."
+    />
+    <!-- Favicon -->
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚗</text></svg>"
+    />
+
+    <!-- Google Fonts Removed -->
+
+    <!-- Tailwind CSS (CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              bgPrimary: "#F2F2F2",
+              bgSurface: "#0A0A0A",
+              bgSurface2: "#141414",
+              bgSurface3: "#1E1E1E",
+              accent: { DEFAULT: "#E63946", dark: "#C1121F" },
+              borderPrimary: "#2A2A2A",
+              textSecondary: "#4B5563",
+              textMuted: "#9CA3AF",
+              textMain: "#111827",
+              success: "#22C55E",
+              warning: "#F59E0B",
+              danger: "#EF4444",
+            },
+            fontFamily: {
+              sans: ['"Helvetica Neue"', "Arial", "sans-serif"],
+              condensed: ['"Arial Narrow"', "sans-serif"],
+            },
+          },
+        },
+      };
+    </script>
+
+    <!-- Supabase SDK (CDN) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+      .no-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+
+      @keyframes modalEnter {
+        from {
+          opacity: 0;
+          transform: scale(0.95);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+      .modal-animate {
+        animation: modalEnter 0.25s ease-out forwards;
+      }
+    </style>
+  </head>
+  <body class="font-sans antialiased text-textMain bg-bgPrimary">
+    <script>
+      /*
+        SUPABASE SETUP - Execute no SQL Editor do Supabase:
+
+        CREATE TABLE veiculos (
+          id uuid default gen_random_uuid() primary key,
+          created_at timestamp with time zone default now(),
+          marca text, modelo text, categoria text,
+          ano integer, km integer, cambio text, combustivel text,
+          cor text, preco numeric, descricao text,
+          foto1 text, foto2 text, foto3 text,
+          tag text, status text default 'Disponível'
+        );
+
+        -- Habilitando RLS (Row Level Security)
+        ALTER TABLE veiculos ENABLE ROW LEVEL SECURITY;
+
+        -- Dando as permissões de acesso às regras do Supabase
+        GRANT ALL ON TABLE public.veiculos TO authenticated;
+        GRANT ALL ON TABLE public.veiculos TO anon;
+
+        -- Criando as regras de acesso (Policies)
+        CREATE POLICY "public_read" ON veiculos FOR SELECT USING (true);
+        CREATE POLICY "auth_write" ON veiculos FOR ALL USING (auth.role() = 'authenticated') WITH CHECK (auth.role() = 'authenticated');
+        */
+
+      const SUPABASE_URL = "%VITE_SUPABASE_URL%".startsWith("%")
+        ? "COLE_AQUI_A_URL_DO_SUPABASE"
+        : "%VITE_SUPABASE_URL%";
+      const SUPABASE_ANON_KEY = "%VITE_SUPABASE_ANON_KEY%".startsWith("%")
+        ? "COLE_AQUI_A_CHAVE_ANON"
+        : "%VITE_SUPABASE_ANON_KEY%";
+      const WHATSAPP_NUMERO = "5551981794338";
+      const INSTAGRAM_URL = "https://instagram.com/pretoautomoveisrs";
+      const FACEBOOK_URL = "https://facebook.com/pretoautomoveis";
+
+      const DEMO_DATA = [
+        {
+          id: "1",
+          marca: "Chevrolet",
+          modelo: "Onix LTZ 1.0 Turbo",
+          categoria: "Hatch",
+          ano: 2022,
+          km: 28000,
+          cambio: "Automático",
+          combustivel: "Flex",
+          cor: "Branco",
+          preco: 89900,
+          descricao: "Único dono, revisões em dia, IPVA 2024 pago.",
+          foto1:
+            "https://images.unsplash.com/photo-1541899481282-d53bffe3c15d?auto=format&fit=crop&q=80&w=400",
+          foto2: "",
+          foto3: "",
+          tag: "Destaque",
+          status: "Disponível",
+          created_at: new Date().toISOString(),
+        },
+      ];
+
+      let supabaseClient = null;
+      let allVehicles = [];
+      const isDemo = SUPABASE_URL === "COLE_AQUI_A_URL_DO_SUPABASE";
+
+      if (!isDemo)
+        supabaseClient = window.supabase.createClient(
+          SUPABASE_URL,
+          SUPABASE_ANON_KEY,
+        );
+
+      const formatPrice = (n) =>
+        new Intl.NumberFormat("pt-BR", {
+          style: "currency",
+          currency: "BRL",
+          maximumFractionDigits: 0,
+        }).format(n);
+      const formatKm = (n) => new Intl.NumberFormat("pt-BR").format(n) + " km";
+    </script>
+
+    <!-- Demo Banner -->
+    <div
+      id="demo-banner"
+      class="hidden bg-accent/10 text-accent text-center py-2 px-4 text-sm relative z-[2000]"
+    >
+      Modo demonstração ativo — conecte o Supabase para usar dados reais
+      <button
+        onclick="document.getElementById('demo-banner').style.display = 'none'"
+        class="absolute right-4 top-1/2 -translate-y-1/2 hover:text-white transition"
+      >
+        ✕
+      </button>
+    </div>
+
+    <!-- HEADER FIXED -->
+    <header
+      class="fixed top-0 w-full z-[1000] border-b border-borderPrimary bg-bgPrimary transition-all h-14 md:h-16 text-textMain"
+    >
+      <div
+        class="max-w-7xl mx-auto px-6 h-full flex items-center justify-between"
+      >
+        <a
+          href="#"
+          class="font-condensed font-extrabold text-[22px] tracking-[2px] uppercase text-textMain block"
+        >
+          PRETO <span class="text-accent">AUTOMÓVEIS</span>
+        </a>
+        <nav class="hidden md:flex items-center gap-8 text-sm font-medium">
+          <a
+            href="#estoque"
+            class="text-textSecondary hover:text-textMain transition duration-200"
+            >Estoque</a
+          >
+          <a
+            href="#sobre"
+            class="text-textSecondary hover:text-textMain transition duration-200"
+            >Sobre</a
+          >
+          <a
+            href="#servicos"
+            class="text-textSecondary hover:text-textMain transition duration-200"
+            >Serviços</a
+          >
+          <a
+            href="#localizacao"
+            class="text-textSecondary hover:text-textMain transition duration-200"
+            >Localização</a
+          >
+          <a
+            href="#contato"
+            class="text-textSecondary hover:text-textMain transition duration-200"
+            >Contato</a
+          >
+        </nav>
+        <button
+          onclick="openGenericWhatsapp()"
+          class="hidden md:flex items-center gap-2 bg-accent hover:bg-accent-dark text-white text-sm font-semibold py-2.5 px-5 rounded-lg transition-colors"
+        >
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+            <path
+              d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"
+            />
+          </svg>
+          Falar no WhatsApp
+        </button>
+        <button id="mobile-menu-btn" class="md:hidden text-textMain p-2">
+          <svg
+            class="w-6 h-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M4 6h16M4 12h16M4 18h16"
+            ></path>
+          </svg>
+        </button>
+      </div>
+      <div
+        id="mobile-menu"
+        class="hidden absolute top-full left-0 w-full bg-bgSurface border-b border-borderPrimary shadow-xl flex flex-col p-4 gap-4"
+      >
+        <a
+          href="#estoque"
+          class="text-textMain font-medium py-2 border-b border-borderPrimary/50"
+          >Estoque</a
+        >
+        <a
+          href="#sobre"
+          class="text-textMain font-medium py-2 border-b border-borderPrimary/50"
+          >Sobre</a
+        >
+        <a
+          href="#servicos"
+          class="text-textMain font-medium py-2 border-b border-borderPrimary/50"
+          >Serviços</a
+        >
+        <a
+          href="#localizacao"
+          class="text-textMain font-medium py-2 border-b border-borderPrimary/50"
+          >Localização</a
+        >
+        <a href="#contato" class="text-textMain font-medium py-2 mb-2"
+          >Contato</a
+        >
+        <button
+          onclick="openGenericWhatsapp()"
+          class="flex items-center justify-center gap-2 bg-accent text-white py-3 rounded-lg font-semibold text-sm w-full"
+        >
+          WhatsApp
+        </button>
+      </div>
+    </header>
+
+    <!-- HERO SECTION -->
+    <section
+      class="pt-10 pb-10 md:pt-28 md:pb-16 min-h-0 md:min-h-[500px] flex items-center px-6 bg-bgPrimary"
+    >
+      <div
+        class="max-w-7xl mx-auto flex flex-col-reverse md:flex-row items-center justify-center md:justify-between w-full gap-0 md:gap-12"
+      >
+        <!-- Texto Esquerda -->
+        <div
+          class="flex flex-col items-start text-left w-full md:w-1/2 -mt-20 sm:-mt-16 md:mt-0 relative z-10"
+        >
+          <h1
+            class="font-condensed font-extrabold text-[42px] md:text-[64px] leading-[0.9] tracking-[-1px] uppercase mb-6 text-textMain"
+          >
+            ENCONTRE SEU PRÓXIMO VEÍCULO
+          </h1>
+          <div class="w-[60px] h-[3px] bg-accent mt-0 mb-6 rounded-none"></div>
+          <p
+            class="text-textSecondary font-medium text-base md:text-xl max-w-[500px] mb-10 leading-relaxed"
+          >
+            Veículos selecionados com procedência garantida. Transparência e
+            atendimento especializado em cada negociação.
+          </p>
+          <div
+            class="flex flex-col flex-wrap sm:flex-row gap-4 w-full sm:w-auto"
+          >
+            <a
+              href="#estoque"
+              class="bg-accent hover:bg-accent-dark text-white font-semibold py-3 px-8 rounded-lg transition-colors w-full sm:w-auto text-sm md:text-base text-center"
+              >VER ESTOQUE</a
+            >
+            <button
+              onclick="openGenericWhatsapp()"
+              class="border border-accent text-accent hover:bg-accent/10 font-semibold py-3 px-8 rounded-lg transition-colors w-full sm:w-auto text-sm md:text-base text-center"
+            >
+              FALAR NO WHATSAPP
+            </button>
+          </div>
+        </div>
+
+        <!-- Logo Direita -->
+        <div
+          class="flex justify-center md:justify-end w-full md:w-1/2 -mt-4 md:mt-0 mb-0 md:mb-0 relative z-0"
+        >
+          <img
+            src="https://i.ibb.co/hF4gTj2x/Chat-GPT-Image-10-de-jun-de-2026-10-18-33.png"
+            alt="Logo Preto Automóveis"
+            class="max-w-[70%] md:max-w-[90%] lg:max-w-full h-auto drop-shadow-2xl"
+          />
+        </div>
+      </div>
+    </section>
+
+    <!-- DIFERENCIAIS -->
+    <section
+      class="bg-bgSurface py-20 px-6 border-y border-borderPrimary text-white"
+    >
+      <div class="max-w-7xl mx-auto">
+        <h2
+          class="font-condensed font-bold text-3xl md:text-4xl text-center uppercase tracking-wide mb-3"
+        >
+          Por que escolher a Preto Automóveis
+        </h2>
+        <p class="text-[#CCCCCC] text-center mb-12">
+          O compromisso com a sua satisfação guia todas as nossas negociações.
+        </p>
+        <div
+          class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-6"
+        >
+          <!-- Cards Diferenciais -->
+          <div
+            class="bg-bgSurface2 border border-borderPrimary border-l-[3px] border-l-accent p-6 rounded-xl transition duration-200"
+          >
+            <svg
+              class="w-8 h-8 text-accent mb-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+              ></path>
+            </svg>
+            <h3 class="font-semibold text-lg mb-2 text-white">
+              Veículos Selecionados
+            </h3>
+            <p class="text-[#CCCCCC] text-sm">
+              Cada veículo é criteriosamente vistoriado antes de entrar no
+              estoque.
+            </p>
+          </div>
+          <div
+            class="bg-bgSurface2 border border-borderPrimary border-l-[3px] border-l-accent p-6 rounded-xl transition duration-200"
+          >
+            <svg
+              class="w-8 h-8 text-accent mb-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              ></path>
+            </svg>
+            <h3 class="font-semibold text-lg mb-2 text-white">
+              Documentação em Ordem
+            </h3>
+            <p class="text-[#CCCCCC] text-sm">
+              Toda a documentação verificada. Sem surpresas após a compra.
+            </p>
+          </div>
+          <div
+            class="bg-bgSurface2 border border-borderPrimary border-l-[3px] border-l-accent p-6 rounded-xl transition duration-200"
+          >
+            <svg
+              class="w-8 h-8 text-accent mb-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+              ></path>
+            </svg>
+            <h3 class="font-semibold text-lg mb-2 text-white">
+              Atendimento Pessoal
+            </h3>
+            <p class="text-[#CCCCCC] text-sm">
+              Consultores especializados para encontrar o veículo certo para
+              você.
+            </p>
+          </div>
+          <div
+            class="bg-bgSurface2 border border-borderPrimary border-l-[3px] border-l-accent p-6 rounded-xl transition duration-200"
+          >
+            <svg
+              class="w-8 h-8 text-accent mb-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              ></path>
+            </svg>
+            <h3 class="font-semibold text-lg mb-2 text-white">Financiamento</h3>
+            <p class="text-[#CCCCCC] text-sm">
+              Trabalhamos com as melhores financeiras. Condições especiais.
+            </p>
+          </div>
+          <div
+            class="bg-bgSurface2 border border-borderPrimary border-l-[3px] border-l-accent p-6 rounded-xl transition duration-200"
+          >
+            <svg
+              class="w-8 h-8 text-accent mb-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+              ></path>
+            </svg>
+            <h3 class="font-semibold text-lg mb-2 text-white">
+              Avaliamos seu Usado
+            </h3>
+            <p class="text-[#CCCCCC] text-sm">
+              Entrada no seu veículo atual com a melhor avaliação de mercado.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ESTOQUE -->
+    <section
+      id="estoque"
+      class="bg-bgPrimary text-textMain pt-20 pb-24 relative"
+    >
+      <div class="text-center mb-8 px-6">
+        <h2
+          class="font-condensed font-extrabold text-[40px] md:text-[48px] uppercase tracking-wide"
+        >
+          Nosso Estoque
+        </h2>
+        <p class="text-textSecondary mt-2">
+          <span id="total-disponiveis" class="font-medium text-textMain"
+            >-</span
+          >
+          veículos disponíveis
+        </p>
+      </div>
+
+      <div
+        id="filter-bar"
+        class="bg-bgSurface text-white border-y border-borderPrimary px-4 md:px-6 py-4 mb-4"
+      >
+        <div class="max-w-7xl mx-auto flex flex-col gap-4">
+          <div class="flex flex-wrap gap-3">
+            <div class="relative flex-grow min-w-[240px]">
+              <svg
+                class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#CCCCCC]"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                ></path>
+              </svg>
+              <input
+                type="text"
+                id="filter-search"
+                placeholder="Buscar por marca ou modelo..."
+                class="w-full bg-bgSurface2 border border-borderPrimary rounded-lg pl-9 pr-4 py-2 text-sm focus:border-accent focus:outline-none transition"
+              />
+            </div>
+            <select
+              id="filter-marca"
+              class="bg-bgSurface2 border border-borderPrimary rounded-lg px-3 py-2 text-sm min-w-[140px] text-white focus:border-accent focus:outline-none"
+            >
+              <option value="Todas as marcas">Todas as marcas</option>
+            </select>
+            <input
+              type="text"
+              id="filter-min-price"
+              placeholder="De R$"
+              class="bg-bgSurface2 border border-borderPrimary rounded-lg px-3 py-2 text-sm w-28 focus:border-accent focus:outline-none"
+            />
+            <input
+              type="text"
+              id="filter-max-price"
+              placeholder="Até R$"
+              class="bg-bgSurface2 border border-borderPrimary rounded-lg px-3 py-2 text-sm w-28 focus:border-accent focus:outline-none"
+            />
+            <select
+              id="filter-sort"
+              class="bg-bgSurface2 border border-borderPrimary rounded-lg px-3 py-2 text-sm min-w-[150px] focus:border-accent focus:outline-none ml-auto text-white"
+            >
+              <option value="recentes">Mais recentes</option>
+              <option value="menor-preco">Menor preço</option>
+              <option value="maior-preco">Maior preço</option>
+              <option value="destaque">Destaque primeiro</option>
+            </select>
+          </div>
+          <div class="flex flex-wrap items-center justify-between gap-4">
+            <div
+              class="flex gap-2 overflow-x-auto no-scrollbar pb-1"
+              id="category-pills"
+            >
+              <button
+                class="filter-pill active px-4 py-1.5 text-xs font-semibold rounded-full bg-accent text-white"
+                data-cat="Todos"
+              >
+                Todos
+              </button>
+              <button
+                class="filter-pill px-4 py-1.5 text-xs font-medium rounded-full bg-bgSurface3 text-white hover:text-white border border-borderPrimary"
+                data-cat="Hatch"
+              >
+                Hatch
+              </button>
+              <button
+                class="filter-pill px-4 py-1.5 text-xs font-medium rounded-full bg-bgSurface3 text-white hover:text-white border border-borderPrimary"
+                data-cat="Sedan"
+              >
+                Sedan
+              </button>
+              <button
+                class="filter-pill px-4 py-1.5 text-xs font-medium rounded-full bg-bgSurface3 text-white hover:text-white border border-borderPrimary"
+                data-cat="SUV"
+              >
+                SUV
+              </button>
+              <button
+                class="filter-pill px-4 py-1.5 text-xs font-medium rounded-full bg-bgSurface3 text-white hover:text-white border border-borderPrimary"
+                data-cat="Pickup"
+              >
+                Pickup
+              </button>
+              <button
+                class="filter-pill px-4 py-1.5 text-xs font-medium rounded-full bg-bgSurface3 text-white hover:text-white border border-borderPrimary"
+                data-cat="Perua"
+              >
+                Perua
+              </button>
+              <button
+                class="filter-pill px-4 py-1.5 text-xs font-medium rounded-full bg-bgSurface3 text-white hover:text-white border border-borderPrimary"
+                data-cat="Van"
+              >
+                Van
+              </button>
+              <button
+                class="filter-pill px-4 py-1.5 text-xs font-medium rounded-full bg-bgSurface3 text-white hover:text-white border border-borderPrimary"
+                data-cat="Cupê"
+              >
+                Cupê
+              </button>
+              <button
+                class="filter-pill px-4 py-1.5 text-xs font-medium rounded-full bg-bgSurface3 text-white hover:text-white border border-borderPrimary"
+                data-cat="Cabriolet"
+              >
+                Cabriolet
+              </button>
+            </div>
+            <div class="flex items-center gap-3">
+              <select
+                id="filter-cambio"
+                class="bg-bgSurface border border-borderPrimary rounded px-2 py-1 text-xs text-[#CCCCCC] focus:outline-none appearance-none hover:text-white"
+              >
+                <option value="Todos">Câmbio: Todos</option>
+                <option value="Automático">Automático</option>
+                <option value="Manual">Manual</option>
+              </select>
+              <select
+                id="filter-combustivel"
+                class="bg-bgSurface border border-borderPrimary rounded px-2 py-1 text-xs text-[#CCCCCC] focus:outline-none appearance-none hover:text-white"
+              >
+                <option value="Todos">Combustível: Todos</option>
+                <option value="Flex">Flex</option>
+                <option value="Gasolina">Gasolina</option>
+                <option value="Diesel">Diesel</option>
+                <option value="Elétrico">Elétrico</option>
+                <option value="Etanol">Etanol</option>
+              </select>
+              <button
+                id="btn-clear-filters"
+                class="hidden text-xs font-medium text-accent -dark ml-2"
+              >
+                Limpar filtros
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="max-w-7xl mx-auto mt-3">
+          <p class="text-[13px] text-textMuted">
+            <span id="filtro-count">-</span> veículos encontrados
+          </p>
+        </div>
+      </div>
+
+      <div class="max-w-7xl mx-auto px-4 md:px-6 pt-10">
+        <div
+          id="vehicles-grid"
+          class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+        ></div>
+        
+      <div id="ver-todos-container" class="hidden justify-center mt-12 w-full">
+        <button id="btn-ver-todos" class="bg-accent hover:bg-accent-dark text-white font-semibold py-3 px-8 rounded-lg transition-colors border border-borderPrimary shadow-lg">
+          Ver todos os carros
+        </button>
+      </div>
+      <div id="empty-state"
+          class="hidden flex-col items-center justify-center py-20 px-4 text-center"
+        >
+          <svg
+            class="w-16 h-16 text-borderPrimary mb-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="1.5"
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            ></path>
+          </svg>
+          <h3 class="text-xl font-medium mb-2">Nenhum veículo encontrado</h3>
+          <p class="text-[#B0B0B0] text-sm mb-6 max-w-md">
+            Não encontramos nenhum veículo com os filtros selecionados.
+          </p>
+          <button
+            onclick="clearFilters()"
+            class="border border-accent text-accent px-6 py-2 rounded-lg font-medium hover:bg-accent/10 transition"
+          >
+            Limpar filtros
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- NÃO ENCONTROU / CONTATO DIRETO -->
+    <section
+      id="nao-encontrou"
+      class="bg-bgSurface border-y border-borderPrimary py-20 px-6"
+    >
+      <div
+        class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-12 items-center"
+      >
+        <div>
+          <span
+            class="text-accent text-xs font-semibold uppercase tracking-wider mb-2 block"
+            >Atendimento Personalizado</span
+          >
+          <h2 class="font-condensed font-bold text-4xl text-white mb-4">
+            Não encontrou o veículo ideal?
+          </h2>
+          <p class="text-[#CCCCCC] text-base leading-relaxed mb-8">
+            Nossa equipe pode buscar exatamente o que você precisa no mercado.
+            Nos conte sobre o carro dos seus sonhos e trabalharemos para
+            encontrar a melhor opção para você.
+          </p>
+          <button
+            onclick="openLeadModal()"
+            class="inline-flex items-center gap-2 bg-accent hover:bg-accent-dark text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+          >
+            Falar com Consultor
+          </button>
+        </div>
+        <div
+          class="bg-bgSurface text-white border border-borderPrimary rounded-xl p-8"
+        >
+          <h3 class="text-white font-semibold text-lg mb-6">
+            O que fazemos por você:
+          </h3>
+          <ul class="space-y-4">
+            <li class="flex items-start gap-3">
+              <span class="text-accent mt-0.5 shrink-0">✓</span
+              ><span class="text-[#CCCCCC] text-sm"
+                >Buscamos o veículo no mercado por você</span
+              >
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="text-accent mt-0.5 shrink-0">✓</span
+              ><span class="text-[#CCCCCC] text-sm"
+                >Avaliamos e aceitamos seu carro usado</span
+              >
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="text-accent mt-0.5 shrink-0">✓</span
+              ><span class="text-[#CCCCCC] text-sm"
+                >Trabalhamos com as melhores financeiras</span
+              >
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="text-accent mt-0.5 shrink-0">✓</span
+              ><span class="text-[#CCCCCC] text-sm"
+                >Atendimento 100% personalizado</span
+              >
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- SOBRE -->
+    <section id="sobre" class="bg-bgPrimary text-textMain py-24 px-6">
+      <div class="max-w-7xl mx-auto">
+        <h2
+          class="font-condensed font-extrabold text-[40px] md:text-[48px] uppercase tracking-wide text-center mb-16"
+        >
+          Sobre a Preto Automóveis
+        </h2>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-12 lg:gap-16 mb-16">
+          <div
+            class="lg:col-span-2 text-textSecondary text-[17px] leading-[1.8] space-y-6 flex flex-col justify-center"
+          >
+            <p>
+              A Preto Automóveis atua há mais de 30 anos no mercado automotivo,
+              construindo uma trajetória baseada em confiança, transparência e
+              compromisso com seus clientes.
+            </p>
+            <p>
+              Como uma empresa familiar, valorizamos o atendimento próximo e
+              personalizado, oferecendo veículos cuidadosamente selecionados,
+              com procedência e qualidade.
+            </p>
+            <p>
+              Nossa missão é proporcionar segurança e tranquilidade em cada
+              negociação, sempre prezando pela excelência no atendimento e pela
+              satisfação de quem confia em nosso trabalho.
+            </p>
+          </div>
+          <div class="grid grid-cols-2 lg:grid-cols-1 gap-4">
+            <div
+              class="bg-bgSurface2 text-white border border-borderPrimary rounded-xl p-8 text-center flex flex-col justify-center transition-colors group"
+            >
+              <span
+                class="font-condensed font-extrabold text-[40px] md:text-[48px] text-accent block mb-2 leading-none group-hover:scale-105 transition-transform"
+                >30+</span
+              ><span class="text-sm md:text-base font-medium text-[#CCCCCC]"
+                >Anos no Mercado</span
+              >
+            </div>
+            <div
+              class="bg-bgSurface2 text-white border border-borderPrimary rounded-xl p-8 text-center flex flex-col justify-center transition-colors group"
+            >
+              <span
+                class="font-condensed font-extrabold text-[40px] md:text-[48px] text-accent block mb-2 leading-none group-hover:scale-105 transition-transform"
+                >100%</span
+              ><span class="text-sm md:text-base font-medium text-[#CCCCCC]"
+                >Procedência<br class="hidden lg:block" />
+                Garantida</span
+              >
+            </div>
+          </div>
+        </div>
+
+        <div
+          class="w-full rounded-2xl overflow-hidden border border-borderPrimary shadow-2xl relative"
+        >
+          <img
+            src="https://i.ibb.co/9HKm3bxr/Chat-GPT-Image-9-de-jun-de-2026-23-30-32.png"
+            alt="Equipe Preto Automóveis"
+            class="w-full h-auto max-h-[80vh] object-cover object-center opacity-90 hover:opacity-100 transition-opacity duration-500"
+          />
+        </div>
+      </div>
+    </section>
+
+    <!-- SERVIÇOS -->
+    <section
+      id="servicos"
+      class="bg-bgSurface text-white py-24 px-6 border-t border-borderPrimary"
+    >
+      <div class="max-w-7xl mx-auto">
+        <h2
+          class="font-condensed font-extrabold text-[40px] md:text-[48px] uppercase tracking-wide text-center mb-4 text-[#FFFFFF]"
+          text-white
+        >
+          Nossos Serviços
+        </h2>
+        <p class="text-[#CCCCCC] text-center text-lg max-w-2xl mx-auto mb-16">
+          Oferecemos soluções completas para facilitar a sua vida no mercado
+          automotivo.
+        </p>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div
+            class="bg-bgSurface2 border text-white border-borderPrimary rounded-xl p-8 transition-colors duration-300"
+          >
+            <div
+              class="w-12 h-12 rounded-full bg-bgSurface2 flex items-center justify-center mb-6 group-hover:bg-accent/10 transition-colors"
+            >
+              <svg
+                class="w-6 h-6 text-accent"
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <rect width="20" height="12" x="2" y="6" rx="2" />
+                <circle cx="12" cy="12" r="2" />
+                <path d="M6 12h.01M18 12h.01" />
+              </svg>
+            </div>
+            <h3 class="text-xl font-bold text-white mb-3 tracking-wide">
+              Compra de Veículos
+            </h3>
+            <p class="text-[#B0B0B0] text-[15px] leading-relaxed">
+              Avaliação transparente, negociação justa e pagamento com total
+              segurança e agilidade.
+            </p>
+          </div>
+
+          <div
+            class="bg-bgSurface2 border text-white border-borderPrimary rounded-xl p-8 transition-colors duration-300"
+          >
+            <div
+              class="w-12 h-12 rounded-full bg-bgSurface2 flex items-center justify-center mb-6 group-hover:bg-accent/10 transition-colors"
+            >
+              <svg
+                class="w-6 h-6 text-accent"
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path
+                  d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"
+                />
+                <circle cx="7" cy="17" r="2" />
+                <path d="M9 17h6" />
+                <circle cx="17" cy="17" r="2" />
+              </svg>
+            </div>
+            <h3 class="text-xl font-bold text-white mb-3 tracking-wide">
+              Venda de Veículos
+            </h3>
+            <p class="text-[#B0B0B0] text-[15px] leading-relaxed">
+              Veículos selecionados, revisados e com procedência garantida para
+              sua tranquilidade.
+            </p>
+          </div>
+
+          <div
+            class="bg-bgSurface2 border text-white border-borderPrimary rounded-xl p-8 transition-colors duration-300"
+          >
+            <div
+              class="w-12 h-12 rounded-full bg-bgSurface2 flex items-center justify-center mb-6 group-hover:bg-accent/10 transition-colors"
+            >
+              <svg
+                class="w-6 h-6 text-accent"
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <line x1="3" x2="21" y1="22" y2="22" />
+                <line x1="6" x2="6" y1="18" y2="11" />
+                <line x1="10" x2="10" y1="18" y2="11" />
+                <line x1="14" x2="14" y1="18" y2="11" />
+                <line x1="18" x2="18" y1="18" y2="11" />
+                <polygon points="12 2 20 7 4 7" />
+              </svg>
+            </div>
+            <h3 class="text-xl font-bold text-white mb-3 tracking-wide">
+              Financiamento Facilitado
+            </h3>
+            <p class="text-[#B0B0B0] text-[15px] leading-relaxed">
+              Parcerias com os principais bancos para oferecer as melhores
+              condições de crédito.
+            </p>
+          </div>
+
+          <div
+            class="bg-bgSurface2 border text-white border-borderPrimary rounded-xl p-8 transition-colors duration-300"
+          >
+            <div
+              class="w-12 h-12 rounded-full bg-bgSurface2 flex items-center justify-center mb-6 group-hover:bg-accent/10 transition-colors"
+            >
+              <svg
+                class="w-6 h-6 text-accent"
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                <path d="m9 12 2 2 4-4" />
+              </svg>
+            </div>
+            <h3 class="text-xl font-bold text-white mb-3 tracking-wide">
+              Seguro Auto
+            </h3>
+            <p class="text-[#B0B0B0] text-[15px] leading-relaxed">
+              Proteção completa para seu veículo, com atendimento personalizado
+              e soluções sob medida.
+            </p>
+          </div>
+
+          <div
+            class="bg-bgSurface2 border text-white border-borderPrimary rounded-xl p-8 transition-colors duration-300"
+          >
+            <div
+              class="w-12 h-12 rounded-full bg-bgSurface2 flex items-center justify-center mb-6 group-hover:bg-accent/10 transition-colors"
+            >
+              <svg
+                class="w-6 h-6 text-accent"
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path
+                  d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"
+                />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" x2="8" y1="13" y2="13" />
+                <line x1="16" x2="8" y1="17" y2="17" />
+                <line x1="10" x2="8" y1="9" y2="9" />
+              </svg>
+            </div>
+            <h3 class="text-xl font-bold text-white mb-3 tracking-wide">
+              Despachante Documentalista
+            </h3>
+            <p class="text-[#B0B0B0] text-[15px] leading-relaxed">
+              Cuidamos de toda a documentação e transferência para você, com
+              praticidade e sem burocracia.
+            </p>
+          </div>
+
+          <div
+            class="bg-bgSurface2 border text-white border-borderPrimary rounded-xl p-8 transition-colors duration-300"
+          >
+            <div
+              class="w-12 h-12 rounded-full bg-bgSurface2 flex items-center justify-center mb-6 group-hover:bg-accent/10 transition-colors"
+            >
+              <svg
+                class="w-6 h-6 text-accent"
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <rect width="20" height="14" x="2" y="5" rx="2" />
+                <line x1="2" x2="22" y1="10" y2="10" />
+              </svg>
+            </div>
+            <h3 class="text-xl font-bold text-white mb-3 tracking-wide">
+              Crédito e FGTS
+            </h3>
+            <p class="text-[#B0B0B0] text-[15px] leading-relaxed">
+              Opções de crédito consignado e antecipação do saque FGTS com
+              segurança e rapidez.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- LOCALIZAÇÃO -->
+    <section
+      id="localizacao"
+      class="bg-bgPrimary py-24 px-6 border-t border-borderPrimary"
+    >
+      <div class="max-w-7xl mx-auto">
+        <h2
+          class="font-condensed font-bold text-3xl md:text-4xl uppercase tracking-wide text-center mb-12"
+        >
+          Onde Estamos
+        </h2>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+          <div
+            class="w-full h-[400px] rounded-xl overflow-hidden border border-borderPrimary bg-bgSurface2 flex items-center justify-center relative"
+          >
+            <iframe
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2907.3308697155203!2d-50.95011423301579!3d-29.938637129269562!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x95190bc99296e4b3%3A0x93c400b6e7050579!2sPreto%20Autom%C3%B3veis%20%26%20Despachante!5e0!3m2!1spt-BR!2sbr!4v1781101912609!5m2!1spt-BR!2sbr"
+              width="100%"
+              height="100%"
+              style="
+                border: 0;
+                filter: invert(90%) hue-rotate(180deg) grayscale(1);
+              "
+              allowfullscreen=""
+              loading="lazy"
+              referrerpolicy="no-referrer-when-downgrade"
+            ></iframe>
+            <div
+              class="absolute inset-0 pointer-events-none border border-black/10 rounded-xl"
+            ></div>
+          </div>
+
+          <div class="flex flex-col gap-4">
+            <div
+              class="bg-bgSurface border border-borderPrimary rounded-xl p-6 flex flex-col gap-6"
+            >
+              <div class="inline-flex items-center gap-3">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#E63946"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  style="flex-shrink: 0"
+                >
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                  <circle cx="12" cy="10" r="3" />
+                </svg>
+                <div>
+                  <h4 class="text-white font-medium mb-1">Endereço</h4>
+                  <p class="text-[#CCCCCC] text-sm">
+                    Rua das Palmeiras, 123 — Centro<br />São Paulo - SP
+                  </p>
+                </div>
+              </div>
+
+              <div class="inline-flex items-center gap-3">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#E63946"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  style="flex-shrink: 0"
+                >
+                  <path
+                    d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3-8.63A2 2 0 0 1 3.68 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 5.91 5.91l.82-.82a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"
+                  />
+                </svg>
+                <div>
+                  <h4 class="text-white font-medium mb-1">WhatsApp</h4>
+                  <p class="text-[#CCCCCC] text-sm">
+                    <a href="#" class="transition">(51) 98179-4338</a>
+                  </p>
+                </div>
+              </div>
+
+              <div class="inline-flex items-center gap-3">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#E63946"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  style="flex-shrink: 0"
+                >
+                  <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+                  <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+                  <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+                </svg>
+                <div>
+                  <h4 class="text-white font-medium mb-1">Instagram</h4>
+                  <p class="text-[#CCCCCC] text-sm">@pretoautomoveisrs</p>
+                </div>
+              </div>
+
+              <div class="inline-flex items-center gap-3">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#E63946"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  style="flex-shrink: 0"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
+                <div>
+                  <h4 class="text-white font-medium mb-1">
+                    Horário de Funcionamento
+                  </h4>
+                  <p class="text-[#CCCCCC] text-sm">
+                    Seg–Sex: 8h às 18h<br />Sáb: 8h às 13h<br />Dom: Fechado
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RODAPÉ -->
+    <footer
+      id="contato"
+      class="bg-[#050505] border-t border-borderPrimary pt-16 pb-6 px-6"
+    >
+      <div class="max-w-7xl mx-auto">
+        <div
+          class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 mb-12"
+        >
+          <div>
+            <img
+              src="https://i.ibb.co/fY8Z8jdp/Chat-GPT-Image-10-de-jun-de-2026-20-11-09.png"
+              alt="Preto Automóveis"
+              class="h-16 md:h-20 mb-6 drop-shadow-lg opacity-80 hover:opacity-100 transition-opacity"
+            />
+            <p class="text-textMuted text-sm mb-6">
+              Realizando o sonho do seu veículo.
+            </p>
+          </div>
+          <div>
+            <h6 class="text-white font-medium mb-4">Navegação</h6>
+            <ul class="space-y-2">
+              <li>
+                <a
+                  href="#estoque"
+                  class="text-sm text-[#B0B0B0] hover:text-white transition"
+                  >Estoque</a
+                >
+              </li>
+              <li>
+                <a
+                  href="#sobre"
+                  class="text-sm text-[#B0B0B0] hover:text-white transition"
+                  >Sobre a Empresa</a
+                >
+              </li>
+              <li>
+                <a
+                  href="#servicos"
+                  class="text-sm text-[#B0B0B0] hover:text-white transition"
+                  >Serviços</a
+                >
+              </li>
+              <li>
+                <a
+                  href="#localizacao"
+                  class="text-sm text-[#B0B0B0] hover:text-white transition"
+                  >Localização</a
+                >
+              </li>
+            </ul>
+          </div>
+          <div>
+            <h6 class="text-white font-medium mb-4">Contato</h6>
+            <ul class="space-y-2 text-sm text-[#B0B0B0]">
+              <li>WhatsApp: (51) 98179-4338</li>
+              <li>Rua das Palmeiras, 123</li>
+            </ul>
+          </div>
+          <div>
+            <h6 class="text-white font-medium mb-4">Informações</h6>
+            <ul class="space-y-3 text-[13px] text-[#B0B0B0]">
+              <li>Trabalhamos com as principais financeiras do mercado.</li>
+              <li>Avaliamos e aceitamos seu veículo usado.</li>
+              <li>Documentação 100% verificada.</li>
+            </ul>
+          </div>
+        </div>
+        <div
+          class="border-t border-borderPrimary pt-6 text-center text-[13px] text-textMuted flex flex-col md:flex-row justify-between items-center gap-4"
+        >
+          <div>&copy; 2024 Preto Automóveis. Todos os direitos reservados.</div>
+          <div>
+            <a
+              href="/admin.html"
+              class="text-[#B0B0B0] hover:text-white transition-colors"
+              >Acesso Admin</a
+            >
+          </div>
+        </div>
+      </div>
+    </footer>
+
+    <!-- FAB WA -->
+    <a
+      href="#"
+      onclick="openGenericWhatsapp(event)"
+      class="fixed bottom-6 right-6 z-[999] w-14 h-14 bg-[#25D366] text-white rounded-full flex items-center justify-center shadow-[0_4px_16px_rgba(37,211,102,0.4)] hover:scale-105 transition-transform"
+      aria-label="WhatsApp"
+    >
+      <svg class="w-7 h-7" fill="currentColor" viewBox="0 0 24 24">
+        <path
+          d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"
+        />
+      </svg>
+    </a>
+
+    <!-- MODAL -->
+    <div
+      id="vehicle-modal"
+      class="hidden fixed inset-0 z-[2000] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4"
+    >
+      <div
+        class="modal-animate bg-bgSurface border border-borderPrimary rounded-2xl w-full max-w-[960px] max-h-[90vh] overflow-y-auto relative shadow-2xl"
+      >
+        <button
+          onclick="closeModal()"
+          class="absolute top-4 right-4 bg-black/50 text-white rounded-full p-2 hover:bg-accent transition z-10"
+        >
+          ✕
+        </button>
+        <div
+          class="grid grid-cols-1 md:grid-cols-2 gap-0"
+          id="modal-content"
+        ></div>
+      </div>
+    </div>
+
+    <!-- LEAD MODAL WIZARD -->
+    <div
+      id="lead-modal"
+      class="hidden fixed inset-0 z-[2000] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4"
+    >
+      <div class="modal-animate bg-bgSurface border border-borderPrimary rounded-2xl w-full max-w-[600px] max-h-[90vh] flex flex-col relative shadow-2xl overflow-hidden">
+        <button
+          onclick="closeLeadModal()"
+          class="absolute top-4 right-4 bg-black/50 text-white rounded-full p-2 hover:bg-accent transition z-10 w-8 h-8 flex items-center justify-center"
+        >
+          ✕
+        </button>
+        
+        <!-- Header & Progress -->
+        <div class="p-6 border-b border-borderPrimary bg-bgSurface2">
+          <h2 class="font-condensed font-bold text-2xl text-white mb-2">Encontrar Veículo Ideal</h2>
+          <div class="w-full bg-bgSurface rounded-full h-2 mb-1">
+            <div id="lead-progress" class="bg-accent h-2 rounded-full transition-all duration-300" style="width: 10%"></div>
+          </div>
+          <p class="text-[#CCCCCC] text-xs font-medium text-right"><span id="lead-step-counter">1</span> de 9</p>
+        </div>
+
+        <!-- Body -->
+        <div class="p-6 overflow-y-auto flex-grow" id="lead-modal-body">
+          <!-- Step 1 -->
+          <div class="lead-step block" data-step="1">
+            <h3 class="text-white text-lg font-semibold mb-4">Qual tipo de veículo você procura?</h3>
+            <div class="grid grid-cols-2 gap-3" id="step1-options">
+              <button class="lead-opt-btn" data-val="Hatch">Hatch</button>
+              <button class="lead-opt-btn" data-val="Sedan">Sedan</button>
+              <button class="lead-opt-btn" data-val="SUV">SUV</button>
+              <button class="lead-opt-btn" data-val="Pickup">Pickup</button>
+              <button class="lead-opt-btn" data-val="Perua">Perua</button>
+              <button class="lead-opt-btn" data-val="Utilitário">Utilitário</button>
+              <button class="lead-opt-btn col-span-2" data-val="Não tenho preferência">Não tenho preferência</button>
+            </div>
+          </div>
+          
+          <!-- Step 2 -->
+          <div class="lead-step hidden" data-step="2">
+            <h3 class="text-white text-lg font-semibold mb-4">Quais marcas você considera? <span class="text-xs text-textMuted font-normal block mt-1">(Pode selecionar mais de uma)</span></h3>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2" id="step2-options">
+              <button class="lead-multi-btn" data-val="Chevrolet">Chevrolet</button>
+              <button class="lead-multi-btn" data-val="Volkswagen">Volkswagen</button>
+              <button class="lead-multi-btn" data-val="Fiat">Fiat</button>
+              <button class="lead-multi-btn" data-val="Toyota">Toyota</button>
+              <button class="lead-multi-btn" data-val="Honda">Honda</button>
+              <button class="lead-multi-btn" data-val="Hyundai">Hyundai</button>
+              <button class="lead-multi-btn" data-val="Jeep">Jeep</button>
+              <button class="lead-multi-btn" data-val="Nissan">Nissan</button>
+              <button class="lead-multi-btn" data-val="Renault">Renault</button>
+              <button class="lead-multi-btn" data-val="Peugeot">Peugeot</button>
+              <button class="lead-multi-btn" data-val="Citroën">Citroën</button>
+              <button class="lead-multi-btn" data-val="Outra">Outra</button>
+              <button class="lead-multi-btn col-span-full" data-val="Não tenho preferência">Não tenho preferência</button>
+            </div>
+          </div>
+
+          <!-- Step 3 -->
+          <div class="lead-step hidden" data-step="3">
+            <h3 class="text-white text-lg font-semibold mb-4">Quais modelos você procura?</h3>
+            <p class="text-textMuted text-sm mb-4">Opcional. Pode informar um ou mais modelos.</p>
+            <input type="text" id="lead-modelos" placeholder="Ex: Corolla, Civic, Onix, Compass..." class="w-full bg-bgSurface2 border border-borderPrimary rounded-lg px-4 py-3 text-white focus:border-accent focus:outline-none transition">
+          </div>
+
+          <!-- Step 4 -->
+          <div class="lead-step hidden" data-step="4">
+            <h3 class="text-white text-lg font-semibold mb-4">Qual seu orçamento aproximado?</h3>
+            <div class="flex flex-col gap-2" id="step4-options">
+              <button class="lead-opt-btn text-left px-4" data-val="Até R$ 50.000">Até R$ 50.000</button>
+              <button class="lead-opt-btn text-left px-4" data-val="Até R$ 80.000">Até R$ 80.000</button>
+              <button class="lead-opt-btn text-left px-4" data-val="Até R$ 120.000">Até R$ 120.000</button>
+              <button class="lead-opt-btn text-left px-4" data-val="Até R$ 180.000">Até R$ 180.000</button>
+              <button class="lead-opt-btn text-left px-4" data-val="Acima de R$ 180.000">Acima de R$ 180.000</button>
+              <button class="lead-opt-btn text-left px-4" data-val="Ainda não definido">Ainda não definido</button>
+            </div>
+          </div>
+
+          <!-- Step 5 -->
+          <div class="lead-step hidden" data-step="5">
+            <h3 class="text-white text-lg font-semibold mb-4">Qual ano você procura?</h3>
+            <div class="flex flex-col gap-2" id="step5-options">
+              <button class="lead-opt-btn text-left px-4" data-val="2020 até 2025">2020 até 2025</button>
+              <button class="lead-opt-btn text-left px-4" data-val="2015 até 2020">2015 até 2020</button>
+              <button class="lead-opt-btn text-left px-4" data-val="2010 até 2015">2010 até 2015</button>
+              <button class="lead-opt-btn text-left px-4" data-val="Qualquer ano">Qualquer ano</button>
+              <div class="mt-4 border-t border-borderPrimary pt-4">
+                <p class="text-[#CCCCCC] text-sm mb-2">Ou digite o ano exato:</p>
+                <input type="number" id="lead-ano-exato" placeholder="Ex: 2018" class="w-full bg-bgSurface2 border border-borderPrimary rounded-lg px-4 py-3 text-white focus:border-accent focus:outline-none transition">
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 6 -->
+          <div class="lead-step hidden" data-step="6">
+            <h3 class="text-white text-lg font-semibold mb-4">Qual o tipo de câmbio?</h3>
+            <div class="grid grid-cols-1 gap-3" id="step6-options">
+              <button class="lead-opt-btn text-left px-4" data-val="Automático">Automático</button>
+              <button class="lead-opt-btn text-left px-4" data-val="Manual">Manual</button>
+              <button class="lead-opt-btn text-left px-4" data-val="Tanto faz">Tanto faz</button>
+            </div>
+          </div>
+
+          <!-- Step 7 -->
+          <div class="lead-step hidden" data-step="7">
+            <h3 class="text-white text-lg font-semibold mb-4">Existe uma quilometragem máxima desejada?</h3>
+            <div class="grid grid-cols-1 gap-3" id="step7-options">
+              <button class="lead-opt-btn text-left px-4" data-val="Até 50.000 km">Até 50.000 km</button>
+              <button class="lead-opt-btn text-left px-4" data-val="Até 100.000 km">Até 100.000 km</button>
+              <button class="lead-opt-btn text-left px-4" data-val="Até 150.000 km">Até 150.000 km</button>
+              <button class="lead-opt-btn text-left px-4" data-val="Sem preferência">Sem preferência</button>
+            </div>
+          </div>
+
+          <!-- Step 8 -->
+          <div class="lead-step hidden" data-step="8">
+            <h3 class="text-white text-lg font-semibold mb-4">Como podemos chamar você?</h3>
+            <label class="block text-sm text-[#CCCCCC] mb-2">Nome Completo *</label>
+            <input type="text" id="lead-nome" placeholder="Digite seu nome" class="w-full bg-bgSurface2 border border-borderPrimary rounded-lg px-4 py-3 text-white focus:border-accent focus:outline-none transition">
+            <p id="lead-nome-error" class="text-danger text-sm mt-2 hidden">Por favor, preencha seu nome.</p>
+          </div>
+
+          <!-- Step 9 -->
+          <div class="lead-step hidden" data-step="9">
+            <h3 class="text-white text-lg font-semibold mb-4">Observações Adicionais</h3>
+            <p class="text-textMuted text-sm mb-4">Existe alguma característica específica que você procura? (Opcional)</p>
+            <textarea id="lead-obs" rows="4" placeholder="Ex: Bancos de couro, teto solar, cor preta..." class="w-full bg-bgSurface2 border border-borderPrimary rounded-lg px-4 py-3 text-white focus:border-accent focus:outline-none transition resize-none"></textarea>
+          </div>
+        </div>
+
+        <!-- Footer / Navigation -->
+        <div class="p-6 border-t border-borderPrimary bg-bgSurface flex justify-between items-center">
+          <button id="btn-lead-prev" onclick="prevLeadStep()" class="text-[#CCCCCC] hover:text-white px-4 py-2 font-medium transition opacity-0 pointer-events-none">Voltar</button>
+          <button id="btn-lead-next" onclick="nextLeadStep()" class="bg-accent hover:bg-accent-dark text-white px-8 py-2.5 rounded-lg font-semibold transition">Próximo</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- CSS for Lead Modal Options -->
+    <style>
+      .lead-opt-btn {
+        background-color: var(--tw-colors-bgSurface2, #141414);
+        border: 1px solid var(--tw-colors-borderPrimary, #2A2A2A);
+        color: white;
+        padding: 0.75rem 1rem;
+        border-radius: 0.5rem;
+        font-weight: 500;
+        transition: all 0.2s;
+        text-align: center;
+      }
+      .lead-opt-btn:hover {
+        border-color: var(--tw-colors-textMuted, #9CA3AF);
+      }
+      .lead-opt-btn.selected {
+        background-color: rgba(230, 57, 70, 0.1);
+        border-color: #E63946;
+        color: white;
+      }
+
+      .lead-multi-btn {
+        background-color: var(--tw-colors-bgSurface2, #141414);
+        border: 1px solid var(--tw-colors-borderPrimary, #2A2A2A);
+        color: white;
+        padding: 0.5rem 0.5rem;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        transition: all 0.2s;
+        text-align: center;
+      }
+      .lead-multi-btn:hover {
+        border-color: var(--tw-colors-textMuted, #9CA3AF);
+      }
+      .lead-multi-btn.selected {
+        background-color: rgba(230, 57, 70, 0.1);
+        border-color: #E63946;
+        color: white;
+      }
+    </style>
+
+    <!-- SCRIPT -->
+    <script>
+      const gridEl = document.getElementById("vehicles-grid");
+      const emptyStateEl = document.getElementById("empty-state");
+      const countTxt = document.getElementById("filtro-count");
+      const totalTxt = document.getElementById("total-disponiveis");
+      const modalEl = document.getElementById("vehicle-modal");
+      const parseUnmask = (v) => parseFloat(v.replace(/\D/g, "")) || 0;
+
+      function maskCurrencyInput(el) {
+        el.addEventListener("input", (e) => {
+          let value = e.target.value.replace(/\D/g, "");
+          if (!value) {
+            e.target.value = "";
+            return;
+          }
+          let formatted = parseInt(value, 10).toLocaleString("pt-BR");
+          e.target.value = formatted;
+        });
+      }
+
+      let activeFilters = {
+        search: "",
+        category: "Todos",
+        marca: "Todas as marcas",
+        cambio: "Todos",
+        combustivel: "Todos",
+        minPrice: null,
+        maxPrice: null,
+        sort: "recentes",
+      };
+
+      async function init() {
+        if (isDemo) {
+          document.getElementById("demo-banner").classList.remove("hidden");
+          allVehicles = DEMO_DATA;
+          setupData();
+        } else {
+          try {
+            const { data, error } = await supabaseClient
+              .from("veiculos")
+              .select("*")
+              .order("created_at", { ascending: false });
+            if (error) throw error;
+            allVehicles = data || [];
+            if (allVehicles.length === 0) {
+              allVehicles = DEMO_DATA; // Fallback to demo car if table is empty
+            }
+            setupData();
+          } catch (e) {
+            console.error("Supabase error:", e);
+            allVehicles = DEMO_DATA;
+            setupData();
+          }
+        }
+      }
+
+      function setupData() {
+        totalTxt.textContent = allVehicles.filter(
+          (v) => (v.status || "Disponível") === "Disponível",
+        ).length;
+        const marcas = [
+          ...new Set(allVehicles.map((v) => v.marca || "Outros")),
+        ].sort();
+        const selectMarca = document.getElementById("filter-marca");
+        selectMarca.innerHTML =
+          '<option value="Todas as marcas">Todas as marcas</option>';
+        marcas.forEach((m) => {
+          const opt = document.createElement("option");
+          opt.value = m;
+          opt.textContent = m;
+          selectMarca.appendChild(opt);
+        });
+        bindFilters();
+        applyFilters();
+      }
+
+      function openGenericWhatsapp(e) {
+        if (e) e.preventDefault();
+        window.open(
+          `https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent("Olá! Gostaria de mais informações sobre os veículos.")}`,
+          "_blank",
+        );
+      }
+
+      function openVehicleWhatsapp(e, marca, modelo, ano, preco) {
+        if (e) e.stopPropagation();
+        window.open(
+          `https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent(`Olá! Estava no seu site e tenho interesse no veículo: ${marca} ${modelo} ${ano} por ${formatPrice(preco)}, gostaria de mais informações`)}`,
+          "_blank",
+        );
+      }
+
+      function createCardHTML(v) {
+        let badgeTag = v.tag
+          ? `<span class="absolute top-3 left-3 bg-accent text-white font-semibold text-[11px] uppercase px-2.5 py-1 rounded-md shadow-sm z-10">${v.tag}</span>`
+          : "";
+        if (v.tag === "Oferta")
+          badgeTag = badgeTag.replace("bg-accent", "bg-[#D97706]");
+        if (v.tag === "Recém-chegado")
+          badgeTag = badgeTag.replace("bg-accent", "bg-[#16A34A]");
+
+        let statusOverlay = "";
+        let statusBadge = `<span class="text-success text-xs font-semibold">● Disponível</span>`;
+        if (v.status === "Vendido") {
+          statusOverlay = `<div class="absolute inset-0 bg-black/80 flex items-center justify-center z-10"><span class="font-condensed font-extrabold text-3xl text-white tracking-widest border-2 border-white/50 px-4 py-2 rounded transform -rotate-12">VENDIDO</span></div>`;
+          statusBadge = `<span class="text-textMuted text-xs font-semibold">● Vendido</span>`;
+        } else if (v.status === "Reservado") {
+          statusOverlay = `<span class="absolute top-3 right-3 bg-warning text-black font-bold text-[11px] uppercase px-2 py-1 rounded shadow-md z-10">RESERVADO</span>`;
+          statusBadge = `<span class="text-warning text-xs font-semibold">● Reservado</span>`;
+        }
+
+        const imgHtml = v.foto1
+          ? `<img src="${v.foto1}" alt="${v.modelo}" class="w-full h-full object-cover">`
+          : `<div class="w-full h-full flex items-center justify-center bg-bgSurface2">Sem foto</div>`;
+
+        return `
+            <div class="card-shadow bg-bgSurface border border-borderPrimary rounded-xl overflow-hidden cursor-pointer flex flex-col group transition-all" onclick="openModal('${v.id}')">
+                <div class="relative aspect-[16/10] overflow-hidden bg-bgSurface2">${badgeTag}${statusOverlay}<div class="absolute inset-0 group-hover:scale-105 transition-transform duration-500">${imgHtml}</div></div>
+                <div class="p-5 flex flex-col flex-grow">
+                    <h3 class="font-condensed font-bold text-[22px] leading-tight text-white group- transition-colors line-clamp-1">${v.modelo}</h3>
+                    <p class="text-sm font-medium text-[#CCCCCC] mb-2 mt-1">${v.marca}</p>
+                    <div class="flex items-center text-[13px] text-[#CCCCCC] gap-2 mb-1"><span>${v.ano}</span><span class="w-1 h-1 rounded-full bg-borderPrimary"></span><span>${v.cambio}</span><span class="w-1 h-1 rounded-full bg-borderPrimary"></span><span>${v.combustivel}</span></div>
+                    <div class="text-[13px] font-medium text-textMuted mb-4">${formatKm(v.km)}</div>
+                    <div class="mt-auto">
+                         <div class="h-[1px] w-full bg-borderPrimary mb-4"></div>
+                         <div class="flex items-end justify-between mb-4"><span class="font-condensed font-extrabold text-[28px] text-white leading-none">${formatPrice(v.preco)}</span>${statusBadge}</div>
+                         <button onclick="openVehicleWhatsapp(event, '${v.marca || ""}', '${(v.modelo || "").replace(/'/g, "\\'").replace(/"/g, "&quot;")}', ${v.ano || ""}, ${v.preco || 0})" class="w-full bg-accent hover:bg-accent-dark text-white text-sm font-semibold py-2.5 rounded-lg transition-colors" ${v.status === "Vendido" ? 'disabled style="opacity:0.5"' : ""}>TENHO INTERESSE</button>
+                    </div>
+                </div>
+            </div>`;
+      }
+
+      function bindFilters() {
+        document
+          .getElementById("filter-search")
+          .addEventListener("input", (e) => {
+            activeFilters.search = e.target.value.toLowerCase();
+            applyFilters();
+          });
+        document
+          .getElementById("filter-marca")
+          .addEventListener("change", (e) => {
+            activeFilters.marca = e.target.value;
+            applyFilters();
+          });
+        document
+          .getElementById("filter-cambio")
+          .addEventListener("change", (e) => {
+            activeFilters.cambio = e.target.value;
+            applyFilters();
+          });
+        document
+          .getElementById("filter-combustivel")
+          .addEventListener("change", (e) => {
+            activeFilters.combustivel = e.target.value;
+            applyFilters();
+          });
+        document
+          .getElementById("filter-sort")
+          .addEventListener("change", (e) => {
+            activeFilters.sort = e.target.value;
+            applyFilters();
+          });
+
+        document.querySelectorAll(".filter-pill").forEach((btn) => {
+          btn.addEventListener("click", (e) => {
+            document.querySelectorAll(".filter-pill").forEach((b) => {
+              b.classList.remove("bg-accent", "text-white");
+              b.classList.add("bg-bgSurface2", "text-[#CCCCCC]");
+            });
+            const tgt = e.target;
+            tgt.classList.remove("bg-bgSurface2", "text-[#CCCCCC]");
+            tgt.classList.add("bg-accent", "text-white");
+            activeFilters.category = tgt.getAttribute("data-cat");
+            applyFilters();
+          });
+        });
+
+        const minEl = document.getElementById("filter-min-price");
+        maskCurrencyInput(minEl);
+        const maxEl = document.getElementById("filter-max-price");
+        maskCurrencyInput(maxEl);
+        minEl.addEventListener("blur", () => {
+          let v = parseUnmask(minEl.value);
+          activeFilters.minPrice = v;
+          applyFilters();
+        });
+        maxEl.addEventListener("blur", () => {
+          let v = parseUnmask(maxEl.value);
+          activeFilters.maxPrice = v;
+          applyFilters();
+        });
+      }
+
+      function clearFilters() {
+        showAllCars = false;
+        document.getElementById("filter-search").value = "";
+        document.getElementById("filter-marca").value = "Todas as marcas";
+        document.getElementById("filter-cambio").value = "Todos";
+        document.getElementById("filter-combustivel").value = "Todos";
+        document.getElementById("filter-min-price").value = "";
+        document.getElementById("filter-max-price").value = "";
+        document.getElementById("filter-sort").value = "recentes";
+        document.querySelector('[data-cat="Todos"]').click();
+      }
+
+      function applyFilters() {
+        // Reset show all when filters change?
+        // showAllCars = false; // Decided not to reset if not requested, or maybe better to reset if activeFilters changes? Let's not reset for now, unless clear filters.
+
+        let f = allVehicles;
+        if (activeFilters.search)
+          f = f.filter((v) =>
+            ((v.marca || "") + " " + (v.modelo || ""))
+              .toLowerCase()
+              .includes(activeFilters.search),
+          );
+        if (activeFilters.marca !== "Todas as marcas")
+          f = f.filter((v) => v.marca === activeFilters.marca);
+        if (activeFilters.category !== "Todos")
+          f = f.filter((v) => v.categoria === activeFilters.category);
+        if (activeFilters.cambio !== "Todos")
+          f = f.filter((v) => v.cambio === activeFilters.cambio);
+        if (activeFilters.combustivel !== "Todos")
+          f = f.filter((v) => v.combustivel === activeFilters.combustivel);
+        if (activeFilters.minPrice > 0)
+          f = f.filter((v) => v.preco >= activeFilters.minPrice);
+        if (activeFilters.maxPrice > 0)
+          f = f.filter((v) => v.preco <= activeFilters.maxPrice);
+
+        if (activeFilters.sort === "menor-preco")
+          f.sort((a, b) => a.preco - b.preco);
+        else if (activeFilters.sort === "maior-preco")
+          f.sort((a, b) => b.preco - a.preco);
+        else if (activeFilters.sort === "destaque")
+          f.sort((a, b) => {
+            if (a.tag && !b.tag) return -1;
+            if (!a.tag && b.tag) return 1;
+            return 0;
+          });
+
+        countTxt.textContent = f.length;
+        const b = document.getElementById("btn-clear-filters");
+        if (
+          f.length !== allVehicles.length ||
+          activeFilters.sort !== "recentes"
+        )
+          b.classList.remove("hidden");
+        else b.classList.add("hidden");
+        renderGrid(f);
+      }
+
+      let showAllCars = false;
+      document.getElementById("btn-ver-todos").addEventListener("click", () => {
+        showAllCars = true;
+        applyFilters();
+      });
+
+      function renderGrid(data) {
+        gridEl.innerHTML = "";
+        const verTodosContainer = document.getElementById(
+          "ver-todos-container",
+        );
+        if (data.length === 0) {
+          gridEl.classList.add("hidden");
+          emptyStateEl.classList.remove("hidden");
+          emptyStateEl.classList.add("flex");
+          verTodosContainer.classList.add("hidden");
+        } else {
+          gridEl.classList.remove("hidden");
+          emptyStateEl.classList.add("hidden");
+          emptyStateEl.classList.remove("flex");
+
+          let itemsToRender = data;
+          if (!showAllCars && data.length > 20) {
+            itemsToRender = data.slice(0, 20);
+            verTodosContainer.classList.remove("hidden");
+            verTodosContainer.classList.add("flex");
+          } else {
+            verTodosContainer.classList.add("hidden");
+            verTodosContainer.classList.remove("flex");
+          }
+
+          gridEl.innerHTML = itemsToRender.map(createCardHTML).join("");
+        }
+      }
+
+      window.changeMainPhoto = (url, el) => {
+        document.getElementById("modal-main-img").src = url;
+        document
+          .querySelectorAll(".modal-thumb")
+          .forEach((t) => t.classList.remove("border-accent"));
+        if (el) el.classList.add("border-accent");
+      };
+
+      function openModal(id) {
+        const v = allVehicles.find((x) => x.id == id);
+        if (!v) return;
+        document.body.style.overflow = "hidden";
+        modalEl.classList.remove("hidden");
+        let photos = [v.foto1, v.foto2, v.foto3].filter((x) => x);
+        if (photos.length === 0) photos = [""];
+        let thumbsHtml =
+          photos.length > 1
+            ? `<div class="flex gap-2 mt-3 px-4">` +
+              photos
+                .map(
+                  (p, i) =>
+                    `<img src="${p}" onclick="changeMainPhoto('${p}', this)" class="modal-thumb w-20 h-14 object-cover rounded cursor-pointer border-2 ${i === 0 ? "border-accent" : "border-transparent"}">`,
+                )
+                .join("") +
+              `</div>`
+            : "";
+        let mainImgHtml = photos[0]
+          ? `<img id="modal-main-img" src="${photos[0]}" class="w-full h-full object-cover">`
+          : `<div class="w-full h-full flex items-center justify-center bg-bgSurface2">Sem foto</div>`;
+
+        document.getElementById("modal-content").innerHTML = `
+                <div class="bg-bgPrimary md:border-r border-borderPrimary pb-6 md:pb-0"><div class="w-full aspect-[16/10] bg-bgSurface2 relative">${mainImgHtml}</div>${thumbsHtml}</div>
+                <div class="p-6 md:p-8 flex flex-col h-full bg-bgSurface">
+                    <div class="mb-6"><h2 class="font-condensed font-extrabold text-3xl text-white mr-2">${v.modelo}</h2><p class="text-[#CCCCCC] font-medium text-lg">${v.marca} ${v.tag ? `<span class="bg-accent text-white text-[11px] uppercase px-2 py-1 rounded ml-2">${v.tag}</span>` : ""}</p></div>
+                    <div class="grid grid-cols-2 gap-4 mb-8 text-[14px]">
+                        <div><p class="text-textMuted text-xs uppercase">Ano</p><p class="text-white">${v.ano}</p></div>
+                        <div><p class="text-textMuted text-xs uppercase">KM</p><p class="text-white">${formatKm(v.km)}</p></div>
+                        <div><p class="text-textMuted text-xs uppercase">Câmbio</p><p class="text-white">${v.cambio}</p></div>
+                        <div><p class="text-textMuted text-xs uppercase">Combustível</p><p class="text-white">${v.combustivel}</p></div>
+                        <div><p class="text-textMuted text-xs uppercase">Categoria</p><p class="text-white">${v.categoria}</p></div>
+                        <div><p class="text-textMuted text-xs uppercase">Status</p><p class="text-white">${v.status}</p></div>
+                    </div>
+                    ${v.descricao ? `<div class="bg-bgSurface2 border border-borderPrimary rounded-lg p-4 mb-8"><p class="text-[#CCCCCC] text-sm">${v.descricao}</p></div>` : ""}
+                    <div class="mt-auto pt-6 border-t border-borderPrimary">
+                        <h3 class="font-condensed font-extrabold text-[42px] text-white leading-none mb-6">${formatPrice(v.preco)}</h3>
+                        <button onclick="openVehicleWhatsapp(event, '${v.marca || ""}', '${(v.modelo || "").replace(/'/g, "\\'").replace(/"/g, "&quot;")}', ${v.ano || ""}, ${v.preco || 0})" class="w-full bg-accent text-white py-4 rounded-xl font-bold" ${v.status === "Vendido" ? 'disabled style="opacity:0.5"' : ""}>${v.status === "Vendido" ? "INDISPONÍVEL" : "FALAR SOBRE ESTE VEÍCULO"}</button>
+                    </div>
+                </div>
+            `;
+      }
+      function closeModal() {
+        modalEl.classList.add("hidden");
+        document.body.style.overflow = "auto";
+      }
+      modalEl.addEventListener("click", (e) => {
+        if (e.target === modalEl) closeModal();
+      });
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") closeModal();
+      });
+
+      // --- LEAD WIZARD LOGIC ---
+      let currentLeadStep = 1;
+      const totalLeadSteps = 9;
+      let leadData = {
+        tipo: "",
+        marcas: [],
+        modelos: "",
+        orcamento: "",
+        ano: "",
+        cambio: "",
+        km: "",
+        nome: "",
+        obs: ""
+      };
+
+      const leadModalEl = document.getElementById("lead-modal");
+      const btnPrevLead = document.getElementById("btn-lead-prev");
+      const btnNextLead = document.getElementById("btn-lead-next");
+
+      function openLeadModal() {
+        document.body.style.overflow = "hidden";
+        leadModalEl.classList.remove("hidden");
+        currentLeadStep = 1;
+        updateLeadUI();
+      }
+
+      function closeLeadModal() {
+        leadModalEl.classList.add("hidden");
+        document.body.style.overflow = "auto";
+      }
+
+      leadModalEl.addEventListener("click", (e) => {
+        if (e.target === leadModalEl) closeLeadModal();
+      });
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && !leadModalEl.classList.contains("hidden")) closeLeadModal();
+      });
+
+      function updateLeadUI() {
+        document.querySelectorAll(".lead-step").forEach(el => {
+          el.classList.add("hidden");
+          el.classList.remove("block");
+        });
+        document.querySelector(`.lead-step[data-step="${currentLeadStep}"]`).classList.remove("hidden");
+        document.querySelector(`.lead-step[data-step="${currentLeadStep}"]`).classList.add("block");
+
+        document.getElementById("lead-step-counter").textContent = currentLeadStep;
+        document.getElementById("lead-progress").style.width = `${(currentLeadStep / totalLeadSteps) * 100}%`;
+
+        if (currentLeadStep === 1) {
+          btnPrevLead.classList.add("opacity-0", "pointer-events-none");
+        } else {
+          btnPrevLead.classList.remove("opacity-0", "pointer-events-none");
+        }
+
+        if (currentLeadStep === totalLeadSteps) {
+          btnNextLead.textContent = "Enviar Solicitação";
+        } else {
+          btnNextLead.textContent = "Próximo";
+        }
+      }
+
+      function nextLeadStep() {
+        // Validation before moving
+        if (currentLeadStep === 8) {
+          const nomeEl = document.getElementById("lead-nome");
+          if (!nomeEl.value.trim()) {
+            document.getElementById("lead-nome-error").classList.remove("hidden");
+            return;
+          }
+          document.getElementById("lead-nome-error").classList.add("hidden");
+          leadData.nome = nomeEl.value.trim();
+        }
+
+        if (currentLeadStep === 3) {
+          leadData.modelos = document.getElementById("lead-modelos").value.trim();
+        }
+
+        if (currentLeadStep === 5) {
+          const anoExato = document.getElementById("lead-ano-exato").value.trim();
+          if (anoExato) leadData.ano = anoExato;
+        }
+
+        if (currentLeadStep === 9) {
+          leadData.obs = document.getElementById("lead-obs").value.trim();
+          finishLeadWizard();
+          return;
+        }
+
+        currentLeadStep++;
+        updateLeadUI();
+      }
+
+      function prevLeadStep() {
+        if (currentLeadStep > 1) {
+          currentLeadStep--;
+          updateLeadUI();
+        }
+      }
+
+      function finishLeadWizard() {
+        const d = leadData;
+        const msg = `Olá! Tudo bem?
+
+Dei uma olhada no catálogo da Preto Automóveis, mas não encontrei exatamente o veículo que estou procurando.
+
+Preenchi o formulário de busca personalizada e gostaria de receber ajuda para encontrar uma opção compatível com o que preciso.
+
+ NOVA SOLICITAÇÃO DE VEÍCULO
+
+ Nome: ${d.nome}
+
+ Tipo: ${d.tipo || "Não informado"}
+
+ Marcas de interesse:
+${d.marcas.length ? d.marcas.join(", ") : "Não informado"}
+
+ Modelos de interesse:
+${d.modelos || "Não informado"}
+
+ Faixa de orçamento:
+${d.orcamento || "Não informado"}
+
+ Ano desejado:
+${d.ano || "Não informado"}
+
+ Câmbio:
+${d.cambio || "Não informado"}
+
+ Quilometragem máxima:
+${d.km || "Não informado"}
+
+ Observações:
+${d.obs || "Nenhuma"}
+
+Agradeço pela atenção e fico no aguardo de opções que se encaixem nesses critérios.
+
+Obrigado!`;
+
+        const whatsappURL = `https://wa.me/5551981794338?text=${encodeURIComponent(msg)}`;
+        window.open(whatsappURL, "_blank");
+        closeLeadModal();
+        
+        // Reset after send
+        setTimeout(() => {
+          leadData = {tipo: "", marcas: [], modelos: "", orcamento: "", ano: "", cambio: "", km: "", nome: "", obs: ""};
+          document.querySelectorAll('.lead-opt-btn, .lead-multi-btn').forEach(b => b.classList.remove('selected'));
+          document.getElementById("lead-modelos").value = "";
+          document.getElementById("lead-ano-exato").value = "";
+          document.getElementById("lead-nome").value = "";
+          document.getElementById("lead-obs").value = "";
+        }, 1000);
+      }
+
+      // Handle single selections
+      document.querySelectorAll('.lead-opt-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const parent = this.parentElement;
+          const stepDiv = this.closest('.lead-step');
+          const stepId = parseInt(stepDiv.getAttribute('data-step'));
+          
+          parent.querySelectorAll('.lead-opt-btn').forEach(b => b.classList.remove('selected'));
+          this.classList.add('selected');
+          
+          const val = this.getAttribute('data-val');
+          if (stepId === 1) leadData.tipo = val;
+          if (stepId === 4) leadData.orcamento = val;
+          if (stepId === 5) {
+            leadData.ano = val;
+            document.getElementById('lead-ano-exato').value = '';
+          }
+          if (stepId === 6) leadData.cambio = val;
+          if (stepId === 7) leadData.km = val;
+
+          if (stepId !== 5 || val !== "Qualquer ano") {
+             setTimeout(nextLeadStep, 300);
+          }
+        });
+      });
+
+      // Handle multi selections
+      document.querySelectorAll('.lead-multi-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const val = this.getAttribute('data-val');
+          
+          if (val === "Não tenho preferência") {
+            this.parentElement.querySelectorAll('.lead-multi-btn').forEach(b => b.classList.remove('selected'));
+            this.classList.add('selected');
+            leadData.marcas = ["Não tenho preferência"];
+          } else {
+            const noneBtn = this.parentElement.querySelector('[data-val="Não tenho preferência"]');
+            if (noneBtn) noneBtn.classList.remove('selected');
+            
+            this.classList.toggle('selected');
+            
+            const selected = Array.from(this.parentElement.querySelectorAll('.lead-multi-btn.selected')).map(b => b.getAttribute('data-val'));
+            leadData.marcas = selected;
+          }
+        });
+      });
+
+      // Removed phone mask
+
+      document
+        .getElementById("mobile-menu-btn")
+        .addEventListener("click", () =>
+          document.getElementById("mobile-menu").classList.toggle("hidden"),
+        );
+      document.addEventListener("DOMContentLoaded", init);
+    </script>
+  </body>
+</html>

@@ -1,0 +1,1059 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin - Preto Automóveis</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              bgPrimary: "#0A0A0A",
+              bgSurface: "#141414",
+              bgSurface2: "#1E1E1E",
+              bgSurface3: "#262626",
+              accent: { DEFAULT: "#E63946", dark: "#C1121F" },
+              borderPrimary: "#2A2A2A",
+              textSecondary: "#CCCCCC",
+              textMuted: "#9CA3AF",
+              textMain: "#111827",
+              success: "#22C55E",
+              warning: "#F59E0B",
+              danger: "#EF4444",
+            },
+            fontFamily: {
+              sans: ['"Helvetica Neue"', "Arial", "sans-serif"],
+              condensed: ['"Arial Narrow"', "sans-serif"],
+            },
+          },
+        },
+      };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+      body {
+        background-color: #0a0a0a;
+        color: #ffffff;
+        overflow-x: hidden;
+      }
+      .hidden-view {
+        display: none !important;
+      }
+      .toast {
+        animation: slideIn 0.3s ease forwards;
+      }
+      @keyframes slideIn {
+        from {
+          transform: translateX(100%);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+    </style>
+  </head>
+  <body class="font-sans antialiased text-white bg-bgPrimary">
+    <script>
+      const SUPABASE_URL = "%VITE_SUPABASE_URL%".startsWith("%")
+        ? "COLE_AQUI_A_URL_DO_SUPABASE"
+        : "%VITE_SUPABASE_URL%";
+      const SUPABASE_ANON_KEY = "%VITE_SUPABASE_ANON_KEY%".startsWith("%")
+        ? "COLE_AQUI_A_CHAVE_ANON"
+        : "%VITE_SUPABASE_ANON_KEY%";
+
+      let DEMO_DATA = [
+        {
+          id: "1",
+          marca: "Chevrolet",
+          modelo: "Onix LTZ 1.0 Turbo",
+          categoria: "Hatch",
+          ano: 2022,
+          km: 28000,
+          cambio: "Automático",
+          combustivel: "Flex",
+          cor: "Branco",
+          preco: 89900,
+          descricao: "Único dono, revisões em dia, IPVA 2024 pago.",
+          foto1:
+            "https://images.unsplash.com/photo-1541899481282-d53bffe3c15d?auto=format&fit=crop&q=80&w=400",
+          foto2: "",
+          foto3: "",
+          tag: "Destaque",
+          status: "Disponível",
+          created_at: new Date().toISOString(),
+        },
+      ];
+
+      const isDemo = SUPABASE_URL === "COLE_AQUI_A_URL_DO_SUPABASE";
+      let supabaseClient = null;
+      if (!isDemo)
+        supabaseClient = window.supabase.createClient(
+          SUPABASE_URL,
+          SUPABASE_ANON_KEY,
+        );
+
+      let allAdminVehicles = [];
+      let authUser = null;
+    </script>
+
+    <!-- TOAST DE NOTIFICAÇÃO -->
+    <div
+      id="toast-container"
+      class="fixed top-4 right-4 z-[9999] flex flex-col gap-2"
+    ></div>
+
+    <!-- TELA DE LOGIN -->
+    <div
+      id="login-screen"
+      class="hidden-view fixed inset-0 bg-bgPrimary flex items-center justify-center p-4 z-[5000]"
+    >
+      <div
+        class="bg-bgSurface border border-borderPrimary rounded-2xl w-full max-w-[400px] p-8 text-center shadow-2xl"
+      >
+        <img
+          src="https://i.ibb.co/hF4gTj2x/Chat-GPT-Image-10-de-jun-de-2026-10-18-33.png"
+          alt="Preto Automóveis"
+          class="h-10 mx-auto mb-2"
+        />
+        <p class="text-textSecondary text-sm mb-8">Painel Administrativo</p>
+
+        <div
+          id="login-error"
+          class="hidden bg-danger/10 border-l-[3px] border-l-danger text-danger text-sm text-left p-3 rounded mb-4"
+        >
+          E-mail ou senha incorretos.
+        </div>
+
+        <form id="login-form" class="space-y-4 text-left">
+          <div>
+            <label class="block text-[#D1D5DB] text-xs font-medium mb-1"
+              >E-mail</label
+            >
+            <input
+              type="email"
+              id="login-email"
+              required
+              class="w-full bg-bgSurface2 border border-borderPrimary rounded-lg px-4 py-2.5 text-[#D1D5DB] focus:border-accent focus:outline-none transition"
+              placeholder="admin@exemplo.com"
+            />
+          </div>
+          <div>
+            <label class="block text-[#D1D5DB] text-xs font-medium mb-1"
+              >Senha</label
+            >
+            <input
+              type="password"
+              id="login-password"
+              required
+              class="w-full bg-bgSurface2 border border-borderPrimary rounded-lg px-4 py-2.5 text-[#D1D5DB] focus:border-accent focus:outline-none transition"
+              placeholder="••••••••"
+            />
+          </div>
+          <button
+            type="submit"
+            class="w-full bg-accent hover:bg-accent-dark text-white font-semibold py-3 rounded-lg transition-colors mt-2"
+          >
+            ENTRAR
+          </button>
+        </form>
+        <p class="text-xs text-[#D1D5DB] mt-6" id="demo-login-hint">
+          Modo demonstração: use qualquer e-mail/senha.
+        </p>
+      </div>
+    </div>
+
+    <!-- PAINEL -->
+    <div id="admin-layout" class="hidden-view flex h-screen overflow-hidden">
+      <!-- SIDEBAR -->
+      <aside
+        id="sidebar"
+        class="fixed md:static inset-y-0 left-0 w-[240px] bg-[#0D0D0D] border-r border-borderPrimary flex flex-col z-[100] transform -translate-x-full md:translate-x-0 transition-transform duration-300"
+      >
+        <div
+          class="p-6 border-b border-borderPrimary flex items-center justify-between"
+        >
+          <h2
+            class="font-condensed font-bold text-lg tracking-wider text-white uppercase"
+          >
+            PRETO ADMIN
+          </h2>
+          <button
+            id="close-sidebar"
+            class="md:hidden text-[#D1D5DB] hover:text-white"
+          >
+            ✕
+          </button>
+        </div>
+
+        <nav class="flex-grow p-4 flex flex-col gap-2">
+          <button
+            onclick="navTo('dashboard')"
+            id="nav-dashboard"
+            class="nav-item flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium bg-accent/15 text-accent border-l-2 border-accent transition"
+          >
+            <span>📊</span> Dashboard
+          </button>
+          <button
+            onclick="navTo('lista')"
+            id="nav-lista"
+            class="nav-item flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-lg text-sm text-textSecondary hover:bg-bgSurface hover:text-white border-l-2 border-transparent transition"
+          >
+            <span>📋</span> Veículos
+          </button>
+          <button
+            onclick="navTo('form', null)"
+            id="nav-form"
+            class="nav-item flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-lg text-sm text-textSecondary hover:bg-bgSurface hover:text-white border-l-2 border-transparent transition"
+          >
+            <span>➕</span> Adicionar Veículo
+          </button>
+        </nav>
+
+        <div class="p-4 border-t border-borderPrimary">
+          <p
+            id="user-email-display"
+            class="text-xs text-textMuted mb-2 truncate"
+          >
+            admin@demo.com
+          </p>
+          <button
+            onclick="doLogout()"
+            class="flex items-center gap-2 text-sm text-textSecondary hover:text-danger transition"
+          >
+            <span>🚪</span> Sair
+          </button>
+        </div>
+      </aside>
+
+      <!-- MAIN AREA -->
+      <main class="flex-grow flex flex-col h-screen overflow-y-auto w-full">
+        <div
+          class="h-16 md:h-20 border-b border-borderPrimary bg-bgPrimary flex items-center px-6 shrink-0 sticky top-0 z-50"
+        >
+          <button id="open-sidebar" class="md:hidden text-white mr-4">
+            ☰
+          </button>
+          <h3 id="topbar-title" class="font-semibold text-lg">Dashboard</h3>
+        </div>
+
+        <div class="p-6 max-w-7xl w-full mx-auto" id="main-content">
+          <!-- SEÇÃO: DASHBOARD -->
+          <div id="sec-dashboard" class="hidden-view">
+            <div
+              class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
+            >
+              <div
+                class="bg-bgSurface border border-borderPrimary rounded-xl p-6"
+              >
+                <p class="text-textSecondary text-sm mb-1">Total de Veículos</p>
+                <h4
+                  id="stat-total"
+                  class="font-condensed font-bold text-4xl text-white"
+                >
+                  0
+                </h4>
+              </div>
+              <div
+                class="bg-bgSurface border border-borderPrimary rounded-xl p-6 border-b-2 border-b-success"
+              >
+                <p class="text-textSecondary text-sm mb-1">Disponíveis</p>
+                <h4
+                  id="stat-disp"
+                  class="font-condensed font-bold text-4xl text-success"
+                >
+                  0
+                </h4>
+              </div>
+              <div
+                class="bg-bgSurface border border-borderPrimary rounded-xl p-6 border-b-2 border-b-warning"
+              >
+                <p class="text-textSecondary text-sm mb-1">Reservados</p>
+                <h4
+                  id="stat-res"
+                  class="font-condensed font-bold text-4xl text-warning"
+                >
+                  0
+                </h4>
+              </div>
+              <div
+                class="bg-bgSurface border border-borderPrimary rounded-xl p-6 border-b-2 border-b-textMuted"
+              >
+                <p class="text-textSecondary text-sm mb-1">Vendidos</p>
+                <h4
+                  id="stat-vend"
+                  class="font-condensed font-bold text-4xl text-textMuted"
+                >
+                  0
+                </h4>
+              </div>
+            </div>
+
+            <h4 class="font-semibold text-lg mb-4">Últimos Cadastros</h4>
+            <div
+              class="bg-bgSurface border border-borderPrimary rounded-xl overflow-x-auto"
+            >
+              <table class="w-full text-left text-sm whitespace-nowrap">
+                <thead
+                  class="bg-bgSurface2 text-textSecondary uppercase text-[11px] font-semibold"
+                >
+                  <tr>
+                    <th
+                      class="px-4 py-3 border-b border-borderPrimary text-[#9CA3AF]"
+                    >
+                      Veículo
+                    </th>
+                    <th
+                      class="px-4 py-3 border-b border-borderPrimary text-[#9CA3AF]"
+                    >
+                      Ano
+                    </th>
+                    <th
+                      class="px-4 py-3 border-b border-borderPrimary text-[#9CA3AF]"
+                    >
+                      Preço
+                    </th>
+                    <th
+                      class="px-4 py-3 border-b border-borderPrimary text-[#9CA3AF]"
+                    >
+                      Status
+                    </th>
+                  </tr>
+                </thead>
+                <tbody
+                  id="dash-table-body"
+                  class="divide-y divide-borderPrimary text-white"
+                ></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- SEÇÃO: LISTA -->
+          <div id="sec-lista" class="hidden-view">
+            <div
+              class="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6"
+            >
+              <input
+                type="text"
+                id="list-search"
+                placeholder="Buscar veículo..."
+                class="w-full sm:w-64 bg-bgSurface2 border border-borderPrimary rounded-lg px-4 py-2 text-sm text-white focus:border-accent focus:outline-none"
+              />
+              <button
+                onclick="navTo('form', null)"
+                class="bg-accent hover:bg-accent-dark text-white px-4 py-2 rounded-lg text-sm font-semibold shrink-0"
+              >
+                ➕ Adicionar
+              </button>
+            </div>
+
+            <div
+              class="bg-bgSurface border border-borderPrimary rounded-xl overflow-x-auto"
+            >
+              <table class="w-full text-left text-sm whitespace-nowrap">
+                <thead
+                  class="bg-bgSurface2 text-textSecondary uppercase text-[11px] font-semibold"
+                >
+                  <tr>
+                    <th
+                      class="px-4 py-3 border-b border-borderPrimary text-[#9CA3AF]"
+                    >
+                      Foto
+                    </th>
+                    <th
+                      class="px-4 py-3 border-b border-borderPrimary text-[#9CA3AF]"
+                    >
+                      Veículo
+                    </th>
+                    <th
+                      class="px-4 py-3 border-b border-borderPrimary text-[#9CA3AF]"
+                    >
+                      Ano
+                    </th>
+                    <th
+                      class="px-4 py-3 border-b border-borderPrimary text-[#9CA3AF]"
+                    >
+                      Preço
+                    </th>
+                    <th
+                      class="px-4 py-3 border-b border-borderPrimary text-[#9CA3AF]"
+                    >
+                      Status
+                    </th>
+                    <th
+                      class="px-4 py-3 border-b border-borderPrimary text-right"
+                    >
+                      Ações
+                    </th>
+                  </tr>
+                </thead>
+                <tbody
+                  id="list-table-body"
+                  class="divide-y divide-borderPrimary text-white"
+                ></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- SEÇÃO: FORM (ADCIONAL/EDITAR) -->
+          <div id="sec-form" class="hidden-view">
+            <div
+              class="bg-bgSurface border border-borderPrimary rounded-xl p-6 sm:p-8"
+            >
+              <h4
+                id="form-title"
+                class="font-semibold text-lg mb-6 pb-4 border-b border-borderPrimary"
+              >
+                Adicionar Veículo
+              </h4>
+
+              <form id="vehicle-form" class="space-y-6">
+                <input type="hidden" id="form-id" />
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label class="block text-xs text-[#D1D5DB] mb-1 required"
+                      >Marca</label
+                    ><input
+                      type="text"
+                      id="f-marca"
+                      required
+                      class="w-full bg-bgSurface2 border border-borderPrimary rounded-lg px-3 py-2 focus:border-accent focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-xs text-[#D1D5DB] mb-1 required"
+                      >Modelo</label
+                    ><input
+                      type="text"
+                      id="f-modelo"
+                      required
+                      class="w-full bg-bgSurface2 border border-borderPrimary rounded-lg px-3 py-2 focus:border-accent focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label class="block text-xs text-[#D1D5DB] mb-1 required"
+                      >Categoria</label
+                    >
+                    <select
+                      id="f-categoria"
+                      required
+                      class="w-full bg-bgSurface2 border border-borderPrimary rounded-lg px-3 py-2 focus:border-accent focus:outline-none"
+                    >
+                      <option value="">Selecione</option>
+                      <option value="Hatch">Hatch</option>
+                      <option value="Sedan">Sedan</option>
+                      <option value="SUV">SUV</option>
+                      <option value="Pickup">Pickup</option>
+                      <option value="Perua">Perua</option>
+
+                      <option value="Van">Van</option>
+                      <option value="Cupê">Cupê</option>
+                      <option value="Cabriolet">Cabriolet</option>
+                    </select>
+                  </div>
+
+                  <div class="grid grid-cols-2 gap-4">
+                    <div>
+                      <label class="block text-xs text-[#D1D5DB] mb-1 required"
+                        >Ano</label
+                      ><input
+                        type="number"
+                        id="f-ano"
+                        min="1950"
+                        required
+                        class="w-full bg-bgSurface2 border border-borderPrimary rounded-lg px-3 py-2 focus:border-accent focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label class="block text-xs text-[#D1D5DB] mb-1 required"
+                        >KM</label
+                      ><input
+                        type="text"
+                        id="f-km"
+                        required
+                        class="w-full bg-bgSurface2 border border-borderPrimary rounded-lg px-3 py-2 focus:border-accent focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label class="block text-xs text-[#D1D5DB] mb-1 required"
+                      >Câmbio</label
+                    >
+                    <select
+                      id="f-cambio"
+                      required
+                      class="w-full bg-bgSurface2 border border-borderPrimary rounded-lg px-3 py-2 focus:border-accent focus:outline-none"
+                    >
+                      <option value="">Selecione</option>
+                      <option value="Automático">Automático</option>
+                      <option value="Manual">Manual</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs text-[#D1D5DB] mb-1 required"
+                      >Combustível</label
+                    >
+                    <select
+                      id="f-combustivel"
+                      required
+                      class="w-full bg-bgSurface2 border border-borderPrimary rounded-lg px-3 py-2 focus:border-accent focus:outline-none"
+                    >
+                      <option value="">Selecione</option>
+                      <option value="Flex">Flex</option>
+                      <option value="Gasolina">Gasolina</option>
+                      <option value="Etanol">Etanol</option>
+                      <option value="Diesel">Diesel</option>
+                      <option value="Elétrico">Elétrico</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label class="block text-xs text-[#D1D5DB] mb-1">Cor</label
+                    ><input
+                      type="text"
+                      id="f-cor"
+                      class="w-full bg-bgSurface2 border border-borderPrimary rounded-lg px-3 py-2 focus:border-accent focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-xs text-[#D1D5DB] mb-1 required"
+                      >Preço (Inteiro)</label
+                    ><input
+                      type="text"
+                      id="f-preco"
+                      required
+                      placeholder="ex: 89.900"
+                      class="w-full bg-bgSurface2 border border-borderPrimary rounded-lg px-3 py-2 focus:border-accent focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label class="block text-xs text-[#D1D5DB] mb-1"
+                      >Status</label
+                    >
+                    <select
+                      id="f-status"
+                      class="w-full bg-bgSurface2 border border-borderPrimary rounded-lg px-3 py-2 focus:border-accent focus:outline-none"
+                    >
+                      <option value="Disponível">Disponível</option>
+                      <option value="Reservado">Reservado</option>
+                      <option value="Vendido">Vendido</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs text-[#D1D5DB] mb-1"
+                      >Tag (Destaque)</label
+                    >
+                    <select
+                      id="f-tag"
+                      class="w-full bg-bgSurface2 border border-borderPrimary rounded-lg px-3 py-2 focus:border-accent focus:outline-none"
+                    >
+                      <option value="">Nenhuma</option>
+                      <option value="Destaque">Destaque</option>
+                      <option value="Oferta">Oferta</option>
+                      <option value="Recém-chegado">Recém-chegado</option>
+                      <option value="Mais pesquisado">Mais pesquisado</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="space-y-4">
+                  <div>
+                    <label class="block text-xs text-[#D1D5DB] mb-1"
+                      >Foto Principal (URL ImgBB)</label
+                    ><input
+                      type="text"
+                      id="f-foto1"
+                      class="w-full bg-bgSurface2 border border-borderPrimary rounded-lg px-3 py-2 focus:border-accent focus:outline-none"
+                    />
+                  </div>
+                  <div class="grid grid-cols-2 gap-4">
+                    <div>
+                      <label class="block text-xs text-[#D1D5DB] mb-1"
+                        >Foto 2 (URL)</label
+                      ><input
+                        type="text"
+                        id="f-foto2"
+                        class="w-full bg-bgSurface2 border border-borderPrimary rounded-lg px-3 py-2 focus:border-accent focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label class="block text-xs text-[#D1D5DB] mb-1"
+                        >Foto 3 (URL)</label
+                      ><input
+                        type="text"
+                        id="f-foto3"
+                        class="w-full bg-bgSurface2 border border-borderPrimary rounded-lg px-3 py-2 focus:border-accent focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label class="block text-xs text-[#D1D5DB] mb-1"
+                    >Descrição Curta</label
+                  ><textarea
+                    id="f-descricao"
+                    rows="3"
+                    class="w-full bg-bgSurface2 border border-borderPrimary rounded-lg px-3 py-2 focus:border-accent focus:outline-none"
+                  ></textarea>
+                </div>
+
+                <div class="pt-4 flex gap-4">
+                  <button
+                    type="submit"
+                    class="bg-accent hover:bg-accent-dark text-[#D1D5DB] font-semibold py-3 px-6 rounded-lg transition-colors flex-grow md:flex-grow-0"
+                  >
+                    SALVAR VEÍCULO
+                  </button>
+                  <button
+                    type="button"
+                    onclick="navTo('lista')"
+                    class="border border-borderPrimary text-[#D1D5DB] hover:text-white px-6 py-3 rounded-lg transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- MODAL DE EXCLUSÃO -->
+    <div
+      id="modal-delete"
+      class="hidden-view fixed inset-0 z-[6000] bg-black/80 flex items-center justify-center p-4"
+    >
+      <div
+        class="bg-bgSurface border border-borderPrimary rounded-xl p-6 max-w-[400px] w-full text-center"
+      >
+        <h4 class="text-lg font-semibold text-white mb-2">Excluir Veículo?</h4>
+        <p class="text-sm text-textSecondary mb-6">
+          Deseja realmente excluir este veículo? Esta ação não pode ser
+          desfeita.
+        </p>
+        <div class="flex gap-4">
+          <button
+            onclick="
+              document
+                .getElementById('modal-delete')
+                .classList.add('hidden-view')
+            "
+            class="flex-1 bg-bgSurface2 border border-borderPrimary hover:bg-bgSurface3 py-2.5 rounded-lg text-white text-sm font-medium transition"
+          >
+            Cancelar
+          </button>
+          <button
+            id="btn-confirm-delete"
+            class="flex-1 bg-danger hover:bg-red-600 py-2.5 rounded-lg text-white text-sm font-medium transition"
+          >
+            Excluir
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const formatPrice = (n) =>
+        new Intl.NumberFormat("pt-BR", {
+          style: "currency",
+          currency: "BRL",
+          maximumFractionDigits: 0,
+        }).format(n);
+
+      // Core UI Helpers
+      const showToast = (msg, type = "success") => {
+        const t = document.createElement("div");
+        t.className = `toast px-4 py-3 rounded-lg shadow-lg border-l-4 text-sm font-medium text-white ${type === "success" ? "bg-bgSurface border-success" : "bg-danger border-white"}`;
+        t.textContent = msg;
+        document.getElementById("toast-container").appendChild(t);
+        setTimeout(() => {
+          t.style.opacity = 0;
+          setTimeout(() => t.remove(), 300);
+        }, 3000);
+      };
+
+      const navTo = (sec, id = null) => {
+        document
+          .querySelectorAll("#main-content > div")
+          .forEach((el) => el.classList.add("hidden-view"));
+        document.querySelectorAll(".nav-item").forEach((el) => {
+          el.classList.remove("bg-accent/15", "text-accent", "border-accent");
+          el.classList.add("text-textSecondary", "border-transparent");
+        });
+        document.getElementById(`sec-${sec}`).classList.remove("hidden-view");
+        const navBtn = document.getElementById(`nav-${sec}`);
+        if (navBtn) {
+          navBtn.classList.add("bg-accent/15", "text-accent", "border-accent");
+          navBtn.classList.remove("text-textSecondary", "border-transparent");
+        }
+
+        if (sec === "dashboard") {
+          document.getElementById("topbar-title").innerText = "Dashboard";
+          renderDashboard();
+        } else if (sec === "lista") {
+          document.getElementById("topbar-title").innerText =
+            "Gerenciar Veículos";
+          renderLista();
+        } else if (sec === "form") {
+          document.getElementById("topbar-title").innerText = id
+            ? "Editar Veículo"
+            : "Novo Veículo";
+          document.getElementById("form-title").innerText = id
+            ? "Editar Veículo"
+            : "Adicionar Veículo";
+          if (id) {
+            fillForm(id);
+          } else {
+            document.getElementById("vehicle-form").reset();
+            document.getElementById("form-id").value = "";
+          }
+        }
+        if (window.innerWidth < 768)
+          document.getElementById("sidebar").classList.add("-translate-x-full");
+      };
+
+      // Auth
+      async function checkAuth() {
+        if (isDemo) {
+          document.getElementById("demo-login-hint").classList.remove("hidden");
+          if (!localStorage.getItem("demo_auth")) {
+            document
+              .getElementById("login-screen")
+              .classList.remove("hidden-view");
+          } else {
+            document.getElementById("user-email-display").innerText =
+              "admin@demo.com";
+            startAdmin();
+          }
+        } else {
+          document.getElementById("demo-login-hint").classList.add("hidden");
+          const {
+            data: { session },
+          } = await supabaseClient.auth.getSession();
+          if (session) {
+            authUser = session.user;
+            document.getElementById("user-email-display").innerText =
+              authUser.email;
+            startAdmin();
+          } else {
+            document
+              .getElementById("login-screen")
+              .classList.remove("hidden-view");
+          }
+        }
+      }
+
+      document
+        .getElementById("login-form")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const em = document.getElementById("login-email").value;
+          const pw = document.getElementById("login-password").value;
+
+          if (isDemo) {
+            localStorage.setItem("demo_auth", "true");
+            document
+              .getElementById("login-screen")
+              .classList.add("hidden-view");
+            document.getElementById("user-email-display").innerText = em;
+            startAdmin();
+            showToast("Bem-vindo ao modo demonstração!");
+            return;
+          }
+
+          const { data, error } = await supabaseClient.auth.signInWithPassword({
+            email: em,
+            password: pw,
+          });
+
+          const errEl = document.getElementById("login-error");
+          if (error) {
+            console.error("Login error:", error);
+            const msg =
+              error.message === "Invalid login credentials"
+                ? "E-mail ou senha incorretos."
+                : "Erro: " + error.message;
+            errEl.innerText = msg;
+            errEl.classList.remove("hidden");
+            errEl.classList.replace("bg-green-500/10", "bg-danger/10");
+            errEl.classList.replace("border-l-green-500", "border-l-danger");
+            errEl.classList.replace("text-green-500", "text-danger");
+            return;
+          }
+
+          authUser = data.user;
+          document.getElementById("login-screen").classList.add("hidden-view");
+          document.getElementById("user-email-display").innerText =
+            authUser.email;
+          startAdmin();
+        });
+
+      async function doLogout() {
+        if (isDemo) {
+          localStorage.removeItem("demo_auth");
+          location.reload();
+        } else {
+          await supabaseClient.auth.signOut();
+          location.reload();
+        }
+      }
+
+      // Data Fetch
+      async function fetchVehicles() {
+        if (isDemo) {
+          allAdminVehicles = DEMO_DATA;
+        } else {
+          try {
+            const { data, error } = await supabaseClient
+              .from("veiculos")
+              .select("*")
+              .order("created_at", { ascending: false });
+            if (error) throw error;
+            allAdminVehicles = data || [];
+            if (allAdminVehicles.length === 0) {
+              allAdminVehicles = DEMO_DATA;
+            }
+          } catch (e) {
+            console.error("Supabase error:", e);
+            allAdminVehicles = DEMO_DATA;
+          }
+        }
+      }
+
+      async function startAdmin() {
+        document.getElementById("admin-layout").classList.remove("hidden-view");
+        await fetchVehicles();
+        navTo("dashboard");
+      }
+
+      // Renders
+      function renderDashboard() {
+        document.getElementById("stat-total").innerText =
+          allAdminVehicles.length;
+        document.getElementById("stat-disp").innerText =
+          allAdminVehicles.filter((v) => v.status === "Disponível").length;
+        document.getElementById("stat-res").innerText = allAdminVehicles.filter(
+          (v) => v.status === "Reservado",
+        ).length;
+        document.getElementById("stat-vend").innerText =
+          allAdminVehicles.filter((v) => v.status === "Vendido").length;
+
+        const last5 = [...allAdminVehicles]
+          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+          .slice(0, 5);
+        document.getElementById("dash-table-body").innerHTML = last5
+          .map(
+            (v) => `
+                <tr class="hover:bg-bgSurface3 transition">
+                    <td class="px-4 py-3 text-[#D1D5DB]"><div class="flex items-center gap-3">${v.foto1 ? `<img src="${v.foto1}" class="w-10 h-10 object-cover rounded">` : `<div class="w-10 h-10 bg-bgSurface2 rounded flex items-center justify-center text-[10px] text-[#D1D5DB]">SEM FOTO</div>`}<div><p class="font-medium text-white">${v.marca}</p><p class="text-xs text-textSecondary">${v.modelo}</p></div></div></td>
+                    <td class="px-4 py-3 text-textSecondary text-[#D1D5DB]">${v.ano}</td>
+                    <td class="px-4 py-3 font-semibold text-white text-[#D1D5DB]">${formatPrice(v.preco)}</td>
+                    <td class="px-4 py-3 text-[#D1D5DB]"><span class="px-2 py-1 rounded text-[11px] font-semibold ${v.status === "Disponível" ? "bg-success/10 text-success" : v.status === "Vendido" ? "bg-borderPrimary text-textMuted" : "bg-warning/10 text-warning"}">${v.status}</span></td>
+                </tr>
+            `,
+          )
+          .join("");
+        if (last5.length === 0)
+          document.getElementById("dash-table-body").innerHTML =
+            `<tr><td colspan="4" class="px-4 py-8 text-center text-textSecondary">Nenhum veículo cadastrado.</td></tr>`;
+      }
+
+      function renderLista() {
+        const q = document.getElementById("list-search").value.toLowerCase();
+        let arr = allAdminVehicles;
+        if (q)
+          arr = arr.filter((v) =>
+            ((v.marca || "") + " " + (v.modelo || ""))
+              .toLowerCase()
+              .includes(q),
+          );
+
+        document.getElementById("list-table-body").innerHTML = arr
+          .map(
+            (v) => `
+                <tr class="hover:bg-bgSurface3 transition">
+                    <td class="px-4 py-2 text-[#D1D5DB]">${v.foto1 ? `<img src="${v.foto1}" class="w-10 h-8 object-cover rounded">` : `<div class="w-10 h-8 bg-bgSurface2 rounded"></div>`}</td>
+                    <td class="px-4 py-2 font-medium text-[#D1D5DB]">${v.marca} <br><span class="text-xs text-textSecondary font-normal">${v.modelo}</span></td>
+                    <td class="px-4 py-2 text-textSecondary text-[#D1D5DB]">${v.ano}</td>
+                    <td class="px-4 py-2 font-semibold text-white text-[#D1D5DB]">${formatPrice(v.preco)}</td>
+                    <td class="px-4 py-2 text-[#D1D5DB]"><span class="px-2 py-1 rounded text-[11px] font-semibold flex w-max ${v.status === "Disponível" ? "bg-success/10 text-success" : v.status === "Vendido" ? "bg-borderPrimary text-textMuted" : "bg-warning/10 text-warning"}">${v.status}</span></td>
+                    <td class="px-4 py-3 text-right space-x-2 text-[#D1D5DB]">
+                        <button onclick="navTo('form', '${v.id}')" class="text-xs font-medium text-accent border border-accent hover:bg-accent/10 px-2 py-1 rounded transition">Editar</button>
+                        <button onclick="confirmDelete('${v.id}')" class="text-xs font-medium text-danger border border-danger hover:bg-danger/10 px-2 py-1 rounded transition">Exc</button>
+                    </td>
+                </tr>
+            `,
+          )
+          .join("");
+        if (arr.length === 0)
+          document.getElementById("list-table-body").innerHTML =
+            `<tr><td colspan="6" class="px-4 py-8 text-center text-textSecondary">Nenhum encontrado.</td></tr>`;
+      }
+
+      document
+        .getElementById("list-search")
+        .addEventListener("input", renderLista);
+
+      // Format numbers with dots as user types
+      const formatNumberInput = (e) => {
+        let value = e.target.value.replace(/\D/g, ''); // Remove non-digits
+        if (value) {
+          value = value.replace(/\B(?=(\d{3})+(?!\d))/g, '.'); // Add dots every 3 digits
+        }
+        e.target.value = value;
+      };
+
+      // Add listeners to format inputs
+      setTimeout(() => {
+        const kmInput = document.getElementById("f-km");
+        const precoInput = document.getElementById("f-preco");
+        if (kmInput) kmInput.addEventListener("input", formatNumberInput);
+        if (precoInput) precoInput.addEventListener("input", formatNumberInput);
+      }, 100);
+
+      // CRUD Ops
+      const formEl = document.getElementById("vehicle-form");
+      formEl.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const payload = {
+          marca: document.getElementById("f-marca").value,
+          modelo: document.getElementById("f-modelo").value,
+          categoria: document.getElementById("f-categoria").value,
+          ano: parseInt(document.getElementById("f-ano").value),
+          km: parseInt(document.getElementById("f-km").value.replace(/\./g, "") || 0),
+          cambio: document.getElementById("f-cambio").value,
+          combustivel: document.getElementById("f-combustivel").value,
+          cor: document.getElementById("f-cor").value,
+          preco: parseFloat(document.getElementById("f-preco").value.replace(/\./g, "") || 0),
+          status: document.getElementById("f-status").value,
+          tag: document.getElementById("f-tag").value,
+          foto1: document.getElementById("f-foto1").value,
+          foto2: document.getElementById("f-foto2").value,
+          foto3: document.getElementById("f-foto3").value,
+          descricao: document.getElementById("f-descricao").value,
+        };
+
+        const id = document.getElementById("form-id").value;
+
+        if (isDemo) {
+          if (id) {
+            const idx = DEMO_DATA.findIndex((x) => x.id == id);
+            if (idx > -1) DEMO_DATA[idx] = { ...DEMO_DATA[idx], ...payload };
+          } else {
+            DEMO_DATA.unshift({
+              id: Date.now().toString(),
+              created_at: new Date().toISOString(),
+              ...payload,
+            });
+          }
+          showToast(
+            id ? "Veículo atualizado (Demo)!" : "Veículo adicionado (Demo)!",
+          );
+          await fetchVehicles();
+          navTo("lista");
+          return;
+        }
+
+        // Supabase Action
+        if (id) {
+          const { error } = await supabaseClient
+            .from("veiculos")
+            .update(payload)
+            .eq("id", id);
+          if (error) {
+            showToast("Erro ao atualizar", "error");
+            console.error(error);
+          } else {
+            showToast("Veículo atualizado!");
+            await fetchVehicles();
+            navTo("lista");
+          }
+        } else {
+          const { error } = await supabaseClient
+            .from("veiculos")
+            .insert([payload]);
+          if (error) {
+            showToast("Erro ao adicionar", "error");
+            console.error(error);
+          } else {
+            showToast("Veículo adicionado!");
+            await fetchVehicles();
+            navTo("lista");
+          }
+        }
+      });
+
+      function fillForm(id) {
+        const v = allAdminVehicles.find((x) => x.id == id);
+        if (!v) return;
+        document.getElementById("form-id").value = v.id;
+        document.getElementById("f-marca").value = v.marca || "";
+        document.getElementById("f-modelo").value = v.modelo || "";
+        document.getElementById("f-categoria").value = v.categoria || "";
+        document.getElementById("f-ano").value = v.ano || "";
+        document.getElementById("f-km").value = v.km ? parseInt(v.km, 10).toLocaleString("pt-BR") : "";
+        document.getElementById("f-cambio").value = v.cambio || "";
+        document.getElementById("f-combustivel").value = v.combustivel || "";
+        document.getElementById("f-cor").value = v.cor || "";
+        document.getElementById("f-preco").value = v.preco ? parseInt(v.preco, 10).toLocaleString("pt-BR") : "";
+        document.getElementById("f-status").value = v.status || "Disponível";
+        document.getElementById("f-tag").value = v.tag || "";
+        document.getElementById("f-foto1").value = v.foto1 || "";
+        document.getElementById("f-foto2").value = v.foto2 || "";
+        document.getElementById("f-foto3").value = v.foto3 || "";
+        document.getElementById("f-descricao").value = v.descricao || "";
+      }
+
+      let pendingDeleteId = null;
+      function confirmDelete(id) {
+        pendingDeleteId = id;
+        document.getElementById("modal-delete").classList.remove("hidden-view");
+      }
+
+      document
+        .getElementById("btn-confirm-delete")
+        .addEventListener("click", async () => {
+          if (!pendingDeleteId) return;
+          document.getElementById("modal-delete").classList.add("hidden-view");
+
+          if (isDemo) {
+            DEMO_DATA = DEMO_DATA.filter((x) => x.id != pendingDeleteId);
+            showToast("Excluído (Demo)!");
+            await fetchVehicles();
+            renderLista();
+            return;
+          }
+
+          const { error } = await supabaseClient
+            .from("veiculos")
+            .delete()
+            .eq("id", pendingDeleteId);
+          if (error) showToast("Erro ao excluir", "error");
+          else {
+            showToast("Excluído com sucesso!");
+            await fetchVehicles();
+            renderLista();
+          }
+        });
+
+      // Mobile Sidebar Toggles
+      document.getElementById("open-sidebar").onclick = () =>
+        document
+          .getElementById("sidebar")
+          .classList.remove("-translate-x-full");
+      document.getElementById("close-sidebar").onclick = () =>
+        document.getElementById("sidebar").classList.add("-translate-x-full");
+
+      // Start
+      document.addEventListener("DOMContentLoaded", checkAuth);
+    </script>
+  </body>
+</html>
